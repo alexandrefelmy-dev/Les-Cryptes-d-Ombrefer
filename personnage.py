@@ -1,3 +1,6 @@
+import random
+
+
 class Personnage:
     def __init__(self, nom, pv_max, attaque):
         self.nom = nom
@@ -16,6 +19,15 @@ class Personnage:
         self.pv = min(self.pv_max, self.pv + montant)
         return self.pv - avant
 
+    def attaquer(self, cible):
+        degats = random.randint(1, self.attaque)
+        critique = random.random() < 0.2
+        if critique:
+            degats *= 2
+        avant = cible.pv
+        cible.subir_degats(degats)
+        return avant - cible.pv, critique
+
     def __str__(self):
         return f"{self.nom} (PV : {self.pv}/{self.pv_max})"
 
@@ -30,12 +42,15 @@ class Joueur(Personnage):
     def gagner_or(self, montant):
         self.piece += montant
 
-    def __str__(self):
-        return f"{super().__str__()} | Niveau {self.niveau} | Or : {self.piece}"
-
     def subir_degats(self, degats):
         degats_reduits = max(0, degats - self.defense)
-        super().subir_degats(degats_reduits)
+        if random.random() < 0.1:
+            pass
+        else:
+            super().subir_degats(degats_reduits)
+
+    def __str__(self):
+        return f"{super().__str__()} | Niveau {self.niveau} | Or : {self.piece}"
 
 
 class Ennemi(Personnage):
@@ -46,14 +61,26 @@ class Ennemi(Personnage):
 
 if __name__ == "__main__":
     aldric = Joueur("Aldric", 30, 5)
-    gobelin = Ennemi("Gobelin", 12, 2, 8)
+    gobelin = Ennemi("Gobelin", 12, 5, 10)
+    rat_geant = Ennemi("Rat géant", 18, 4, 6)
+    squelette = Ennemi("Squelette", 10, 6, 8)
+    ennemi = random.choice([gobelin, rat_geant, squelette])
+    print(f"Un {ennemi.nom} surgit ! {ennemi}")
+    montant_degat, critique = aldric.attaquer(ennemi)
+    if critique:
+        print(f"{aldric.nom} attaque {ennemi.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
+    else:
+        print(f"{aldric.nom} attaque {ennemi.nom} et inflige {montant_degat} dégâts.")
+    print(ennemi)
+    montant_degat, critique = aldric.attaquer(ennemi)
+    if critique:
+        print(f"{aldric.nom} attaque {ennemi.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
+    else:
+        print(f"{aldric.nom} attaque {ennemi.nom} et inflige {montant_degat} dégâts.")
+    print(ennemi)
+    montant_degat, critique = ennemi.attaquer(aldric)
+    if critique:
+        print(f"{ennemi.nom} attaque {aldric.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
+    else:
+        print(f"{ennemi.nom} attaque {aldric.nom} et inflige {montant_degat} dégâts.")
     print(aldric)
-    print(gobelin)
-    gobelin.subir_degats(12)
-    print(f"{gobelin.nom} subit 12 dégâts.")
-    print(gobelin)
-    aldric.gagner_or(gobelin.recompense)
-    print(f"{aldric.nom} ramasse {gobelin.recompense} pièces d'or.")
-    print(aldric)
-    print(f"{aldric.nom} est un Personnage : {isinstance(aldric, Personnage)}")
-    print(f"{gobelin.nom} est un Joueur : {isinstance(gobelin, Joueur)}")
