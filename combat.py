@@ -1,9 +1,12 @@
+"""Déroulement d'un combat au tour par tour et point d'entrée du jeu."""
+
 import random
 
 from personnage import Joueur, Ennemi
 
 
 def tour_attaque(attaquant, cible):
+    """Fait attaquer la cible par l'attaquant et affiche les dégâts infligés."""
     montant_degat, critique = attaquant.attaquer(cible)
     if critique:
         print(f"{attaquant.nom} attaque {cible.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
@@ -12,6 +15,7 @@ def tour_attaque(attaquant, cible):
 
 
 def combat(joueur, ennemi):
+    """Lance un combat et renvoie "victoire", "defaite" ou "fuite"."""
     compteur = 1
     while joueur.est_vivant() and ennemi.est_vivant():
         print(f"--- Tour {compteur} ---")
@@ -42,18 +46,16 @@ def combat(joueur, ennemi):
                 fuite = random.random() < 0.5
                 if fuite:
                     return "fuite"
-                else:
-                    print("Fuite ratée !")
-                    tour_attaque(ennemi, joueur)
+                print("Fuite ratée !")
+                tour_attaque(ennemi, joueur)
             case "4":
                 print("La défense est doublée.")
                 defense_initial = joueur.defense
                 joueur.defense *= 2
                 tour_attaque(ennemi, joueur)
                 joueur.defense = defense_initial
-        if not joueur.est_vivant():
-            return "defaite"
         compteur += 1
+    return "defaite"
 
 
 if __name__ == "__main__":
@@ -61,14 +63,14 @@ if __name__ == "__main__":
     gobelin = Ennemi("Gobelin", 12, 5, 10)
     rat_geant = Ennemi("Rat géant", 18, 4, 6)
     squelette = Ennemi("Squelette", 10, 6, 8)
-    ennemi = random.choice([gobelin, rat_geant, squelette])
-    print(f"Un {ennemi.nom} surgit ! {ennemi}")
-    resultat = combat(aldric, ennemi)
+    adversaire = random.choice([gobelin, rat_geant, squelette])
+    print(f"Un {adversaire.nom} surgit ! {adversaire}")
+    resultat = combat(aldric, adversaire)
     match resultat:
         case "victoire":
-            aldric.gagner_or(ennemi.recompense)
-            print(f"{ennemi.nom} est vaincu !")
-            print(f"Victoire ! {aldric.nom} ramasse {ennemi.recompense} pièces d'or.")
+            aldric.gagner_or(adversaire.recompense)
+            print(f"{adversaire.nom} est vaincu !")
+            print(f"Victoire ! {aldric.nom} ramasse {adversaire.recompense} pièces d'or.")
             print(aldric)
         case "defaite":
             print(f"{aldric.nom} est tombé... Game over.")

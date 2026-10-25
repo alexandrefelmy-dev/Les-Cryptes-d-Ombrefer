@@ -1,7 +1,11 @@
+"""Classes des personnages du jeu : Personnage, Joueur et Ennemi."""
+
 import random
 
 
 class Personnage:
+    """Personnage de base avec des points de vie et une attaque."""
+
     def __init__(self, nom, pv_max, attaque):
         self.nom = nom
         self.pv_max = pv_max
@@ -9,17 +13,21 @@ class Personnage:
         self.attaque = attaque
 
     def est_vivant(self):
+        """Renvoie True si le personnage a encore des points de vie."""
         return self.pv > 0
 
     def subir_degats(self, degats):
+        """Retire des points de vie, sans descendre en dessous de 0."""
         self.pv = max(0, self.pv - degats)
 
     def soigner(self, montant):
+        """Rend des points de vie (sans dépasser pv_max) et renvoie le montant soigné."""
         avant = self.pv
         self.pv = min(self.pv_max, self.pv + montant)
         return self.pv - avant
 
     def attaquer(self, cible):
+        """Attaque la cible et renvoie (dégâts réellement infligés, coup critique)."""
         degats = random.randint(1, self.attaque)
         critique = random.random() < 0.2
         if critique:
@@ -33,6 +41,8 @@ class Personnage:
 
 
 class Joueur(Personnage):
+    """Personnage contrôlé par le joueur, avec défense, potions et or."""
+
     def __init__(self, nom, pv_max, attaque):
         super().__init__(nom, pv_max, attaque)
         self.niveau = 1
@@ -41,6 +51,7 @@ class Joueur(Personnage):
         self.potion = 3
 
     def gagner_or(self, montant):
+        """Ajoute des pièces d'or au joueur."""
         self.piece += montant
 
     def subir_degats(self, degats):
@@ -54,6 +65,8 @@ class Joueur(Personnage):
 
 
 class Ennemi(Personnage):
+    """Ennemi qui rapporte une récompense en or quand il est vaincu."""
+
     def __init__(self, nom, pv_max, attaque, recompense):
         super().__init__(nom, pv_max, attaque)
         self.recompense = recompense
