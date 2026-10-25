@@ -38,15 +38,15 @@ class Joueur(Personnage):
         self.niveau = 1
         self.piece = 0
         self.defense = 2
+        self.potion = 3
 
     def gagner_or(self, montant):
         self.piece += montant
 
     def subir_degats(self, degats):
         degats_reduits = max(0, degats - self.defense)
-        if random.random() < 0.1:
-            pass
-        else:
+        esquive = random.random() < 0.1
+        if not esquive:
             super().subir_degats(degats_reduits)
 
     def __str__(self):
@@ -57,30 +57,3 @@ class Ennemi(Personnage):
     def __init__(self, nom, pv_max, attaque, recompense):
         super().__init__(nom, pv_max, attaque)
         self.recompense = recompense
-
-
-if __name__ == "__main__":
-    aldric = Joueur("Aldric", 30, 5)
-    gobelin = Ennemi("Gobelin", 12, 5, 10)
-    rat_geant = Ennemi("Rat géant", 18, 4, 6)
-    squelette = Ennemi("Squelette", 10, 6, 8)
-    ennemi = random.choice([gobelin, rat_geant, squelette])
-    print(f"Un {ennemi.nom} surgit ! {ennemi}")
-    montant_degat, critique = aldric.attaquer(ennemi)
-    if critique:
-        print(f"{aldric.nom} attaque {ennemi.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
-    else:
-        print(f"{aldric.nom} attaque {ennemi.nom} et inflige {montant_degat} dégâts.")
-    print(ennemi)
-    montant_degat, critique = aldric.attaquer(ennemi)
-    if critique:
-        print(f"{aldric.nom} attaque {ennemi.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
-    else:
-        print(f"{aldric.nom} attaque {ennemi.nom} et inflige {montant_degat} dégâts.")
-    print(ennemi)
-    montant_degat, critique = ennemi.attaquer(aldric)
-    if critique:
-        print(f"{ennemi.nom} attaque {aldric.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
-    else:
-        print(f"{ennemi.nom} attaque {aldric.nom} et inflige {montant_degat} dégâts.")
-    print(aldric)
