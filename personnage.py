@@ -41,24 +41,34 @@ class Personnage:
 
 
 class Joueur(Personnage):
-    """Personnage contrôlé par le joueur, avec défense, potions et or."""
+    """Personnage contrôlé par le joueur, avec défense, inventaire et or."""
 
     def __init__(self, nom, pv_max, attaque):
         super().__init__(nom, pv_max, attaque)
         self.niveau = 1
         self.piece = 0
         self.defense = 2
-        self.potion = 3
+        self.inventaire = []
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""
         self.piece += montant
 
     def subir_degats(self, degats):
+        """Réduit les dégâts avec la défense, avec 10 % de chances d'esquiver."""
         degats_reduits = max(0, degats - self.defense)
         esquive = random.random() < 0.1
         if not esquive:
             super().subir_degats(degats_reduits)
+
+    def ramasser_objet(self, objet):
+        """Ajoute un objet à la fin de l'inventaire."""
+        self.inventaire.append(objet)
+
+    def utiliser_objet(self, index):
+        """Retire l'objet à l'index donné, l'utilise et renvoie la phrase obtenue."""
+        objet = self.inventaire.pop(index)
+        return objet.utiliser(self)
 
     def __str__(self):
         return f"{super().__str__()} | Niveau {self.niveau} | Or : {self.piece}"
