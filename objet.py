@@ -53,15 +53,6 @@ def afficher_inventaire(joueur):
 
 
 if __name__ == "__main__":
-    aldric = Joueur("Aldric", 30, 5)
-    aldric.pv = 22
+
     aldric.ramasser_objet(Potion("Potion de soin", 20))
     aldric.ramasser_objet(Arme("Epée rouillée", 3))
-    aldric.ramasser_objet(Potion("Potion de soin", 20))
-    print(aldric)
-    afficher_inventaire(aldric)
-    print(aldric.utiliser_objet(0))
-    afficher_inventaire(aldric)
-    print(aldric.utiliser_objet(0))
-    afficher_inventaire(aldric)
-    print(aldric)

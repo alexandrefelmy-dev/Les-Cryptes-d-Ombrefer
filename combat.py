@@ -66,24 +66,3 @@ def combat(joueur, ennemi):
         compteur += 1
     return "defaite"
 
-
-if __name__ == "__main__":
-    aldric = Joueur("Aldric", 30, 5)
-    gobelin = Ennemi("Gobelin", 12, 5, 10)
-    rat_geant = Ennemi("Rat géant", 18, 4, 6)
-    squelette = Ennemi("Squelette", 10, 6, 8)
-    adversaire = random.choice([gobelin, rat_geant, squelette])
-    aldric.ramasser_objet(Potion("Potion de soin", 20))
-    aldric.ramasser_objet(Potion("Potion de soin", 20))
-    print(f"Un {adversaire.nom} surgit ! {adversaire}")
-    resultat = combat(aldric, adversaire)
-    match resultat:
-        case "victoire":
-            aldric.gagner_or(adversaire.recompense)
-            print(f"{adversaire.nom} est vaincu !")
-            print(f"Victoire ! {aldric.nom} ramasse {adversaire.recompense} pièces d'or.")
-            print(aldric)
-        case "defaite":
-            print(f"{aldric.nom} est tombé... Game over.")
-        case "fuite":
-            print(f"{aldric.nom} prend la fuite !")

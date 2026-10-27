@@ -77,12 +77,3 @@ def explorer(joueur, donjon):
             print(f"{joueur.nom} trouve : {salle.butin}")
     return True
 
-
-if __name__ == "__main__":
-    aldric = Joueur("Aldric", 30, 5)
-    crypte = generer_donjon(random.randint(3, 6))
-    resultat = explorer(aldric, crypte)
-    if resultat:
-        print(f"{aldric.nom} a traversé la crypte ! {aldric}")
-    else:
-        print(f"{aldric.nom} a péri.")
