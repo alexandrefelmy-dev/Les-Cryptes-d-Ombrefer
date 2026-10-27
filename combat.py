@@ -19,7 +19,7 @@ def combat(joueur, ennemi):
     """Lance un combat et renvoie "victoire", "defaite" ou "fuite"."""
     compteur = 1
     while joueur.est_vivant() and ennemi.est_vivant():
-        print(f"--- Tour {compteur} ---")
+        print(f"\n--- Tour {compteur} ---")
         print(joueur)
         print(ennemi)
         print(f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir   4. Se défendre")
