@@ -5,6 +5,10 @@ from donjon import explorer, generer_donjon
 from objet import Potion
 from personnage import Joueur
 
+def difficulté():
+    print("Choix du niveau de difficulté")
+    print("1. Facile")
+
 
 def main():
     while True:
@@ -12,8 +16,8 @@ def main():
         print("1. Nouvelle partie\n2. Quitter")
         choix = input("Ton choix : ").strip()
         while choix not in ("1", "2"):
-            print("Choix invalide.")
-            choix = input("\nTon choix : ").strip()
+             print("Choix invalide.")
+             choix = input("\nTon choix : ").strip()
         match choix:
             case "1":
                 nom_hero = input("\nNom de ton héros : ").strip()

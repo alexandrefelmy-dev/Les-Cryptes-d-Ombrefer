@@ -51,8 +51,3 @@ def afficher_inventaire(joueur):
     for numero, objet in enumerate(joueur.inventaire, start=1):
         print(f"  {numero}. {objet}")
 
-
-if __name__ == "__main__":
-
-    aldric.ramasser_objet(Potion("Potion de soin", 20))
-    aldric.ramasser_objet(Arme("Epée rouillée", 3))

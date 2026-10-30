@@ -1,7 +1,7 @@
 import random
 
 from objet import Potion, Arme
-from combat import combat
+from combat import combat, utiliser_un_objet
 from personnage import Ennemi, Joueur
 
 
@@ -75,5 +75,11 @@ def explorer(joueur, donjon):
         if salle.butin is not None:
             joueur.ramasser_objet(salle.butin)
             print(f"{joueur.nom} trouve : {salle.butin}")
+        print("1. Utiliser un objet\n2. Passer à la salle suivante")
+        resutat_pause = input("Ton choix : ")
+        match resutat_pause:
+            case 1:
+                resultat_objet = utiliser_un_objet(joueur)
+                if not resultat_objet:
+                    continue
     return True
-
