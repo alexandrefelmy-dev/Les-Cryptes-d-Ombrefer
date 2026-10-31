@@ -1,9 +1,8 @@
-"""Déroulement d'un combat au tour par tour et point d'entrée du jeu."""
+"""Déroulement d'un combat au tour par tour."""
 
 import random
 
-from personnage import Joueur, Ennemi
-from objet import afficher_inventaire, Potion
+from objet import afficher_inventaire
 
 
 def tour_attaque(attaquant, cible):
@@ -15,7 +14,8 @@ def tour_attaque(attaquant, cible):
         print(f"{attaquant.nom} attaque {cible.nom} et inflige {montant_degat} dégâts.")
 
 
-def utiliser_un_objet(joueur): 
+def utiliser_un_objet(joueur):
+    """Fait choisir et utiliser un objet. Renvoie True si un objet a été utilisé."""
     if not joueur.inventaire:
         print("Ton inventaire est vide.")
         return False
@@ -35,12 +35,12 @@ def utiliser_un_objet(joueur):
 
 
 def choix_combat(joueur):
-        print(f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir   4. Se défendre")
+    print(f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir   4. Se défendre")
+    choix = input("Ton choix : ")
+    while choix not in ("1", "2", "3", "4"):
+        print("Réponse invalide.")
         choix = input("Ton choix : ")
-        while choix not in ("1", "2", "3", "4"):
-            print("Réponse invalide.")
-            choix = input("Ton choix : ")
-        return choix
+    return choix
 
 
 def combat(joueur, ennemi):
@@ -50,7 +50,7 @@ def combat(joueur, ennemi):
         print(f"\n--- Tour {compteur} ---")
         print(joueur)
         print(ennemi)
-        choix = choix_combat
+        choix = choix_combat(joueur)
         match choix:
             case "1":
                 tour_attaque(joueur, ennemi)

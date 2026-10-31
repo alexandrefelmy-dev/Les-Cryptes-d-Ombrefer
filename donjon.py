@@ -2,7 +2,7 @@ import random
 
 from objet import Potion, Arme
 from combat import combat, utiliser_un_objet
-from personnage import Ennemi, Joueur
+from personnage import Ennemi
 
 
 MODELES_ENNEMIS = [
@@ -45,6 +45,19 @@ def creer_salle(numero):
     )
 
 
+def pause(joueur):
+    while True:
+        print("1. Utiliser un objet\n2. Passer à la salle suivante")
+        choix_pause = input("Ton choix : ")
+        match choix_pause:
+            case "1":
+                utiliser_un_objet(joueur)
+            case "2":
+                break
+            case _:
+                print("Choix invalide.")
+
+
 def generer_donjon(nb_salles):
     return [creer_salle(i) for i in range(1, nb_salles + 1)]
 
@@ -65,21 +78,17 @@ def explorer(joueur, donjon):
             resultat = combat(joueur, salle.ennemi)
             if resultat == "defaite":
                 return False
-            if resultat == "fuite":
+            elif resultat == "fuite":
                 print(f"{joueur.nom} s'enfuit vers la salle suivante !")
+                pause(joueur)
                 continue
             joueur.gagner_or(salle.ennemi.recompense)
             print(f"{salle.ennemi.nom} est vaincu ! {joueur.nom} ramasse {salle.ennemi.recompense} pièces d'or.")
         else:
             print(f"La salle est vide... {joueur.nom} reprend son souffle.")
+            pause(joueur)
         if salle.butin is not None:
             joueur.ramasser_objet(salle.butin)
             print(f"{joueur.nom} trouve : {salle.butin}")
-        print("1. Utiliser un objet\n2. Passer à la salle suivante")
-        resutat_pause = input("Ton choix : ")
-        match resutat_pause:
-            case 1:
-                resultat_objet = utiliser_un_objet(joueur)
-                if not resultat_objet:
-                    continue
+            pause(joueur    )
     return True
