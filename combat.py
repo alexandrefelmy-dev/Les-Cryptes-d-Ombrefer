@@ -35,7 +35,11 @@ def utiliser_un_objet(joueur):
 
 
 def choix_combat(joueur):
-    print(f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir   4. Se défendre")
+    """Affiche les actions possibles et renvoie le choix valide du joueur ("1" à "4")."""
+    print(
+        f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})"
+        "   3. Fuir   4. Se défendre"
+        )
     choix = input("Ton choix : ")
     while choix not in ("1", "2", "3", "4"):
         print("Réponse invalide.")

@@ -27,7 +27,7 @@ python combat.py
 ## 📁 Structure du projet
 
 | Fichier | Contenu |
-|---|---|
+| --- | --- |
 | `personnage.py` | Classes `Personnage`, `Joueur` (avec inventaire) et `Ennemi` |
 | `objet.py` | Classes `Objet`, `Potion` et `Arme`, affichage de l'inventaire |
 | `combat.py` | Déroulement du combat et point d'entrée du jeu |
