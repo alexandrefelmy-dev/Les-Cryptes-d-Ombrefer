@@ -1,0 +1,29 @@
+# Hooks exécutés automatiquement avant chaque commit (et dans la pipeline GitHub).
+# Installation : pre-commit install
+# Lancer à la main sur tout le projet : pre-commit run --all-files
+# Mettre à jour les versions : pre-commit autoupdate
+
+repos:
+  # Vérifications génériques sur tous les fichiers
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace      # supprime les espaces en fin de ligne
+      - id: end-of-file-fixer        # un seul saut de ligne en fin de fichier
+      - id: check-yaml               # YAML syntaxiquement valide
+      - id: check-merge-conflict     # pas de marqueurs <<<<<<< oubliés
+      - id: check-added-large-files  # bloque les gros fichiers
+      - id: no-commit-to-branch      # interdit de committer directement sur main
+        args: [--branch, main]
+
+  # Linter Python
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v4.1.3
+    hooks:
+      - id: pylint
+
+  # Linter Markdown (règles configurées dans .markdownlint.yaml)
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.24.0
+    hooks:
+      - id: markdownlint-cli2
