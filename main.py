@@ -1,3 +1,5 @@
+"""Point d'entrée du jeu : menu principal et lancement d'une partie."""
+
 import random
 
 from donjon import explorer, generer_donjon
@@ -6,6 +8,7 @@ from personnage import Joueur
 
 
 def choisir_difficulte():
+    """Demande la difficulté et renvoie un donjon de la taille correspondante."""
     print("Choix du niveau de difficulté")
     print("1. Facile\n2. Intermédiaire\n3. Difficile")
     choix = input("Ton choix : ")
@@ -22,6 +25,7 @@ def choisir_difficulte():
 
 
 def main():
+    """Affiche le menu principal et enchaîne les parties jusqu'à ce que le joueur quitte."""
     while True:
         print("\n=== LES CRYPTES D'OMBREFER ===")
         print("1. Nouvelle partie\n2. Quitter")
@@ -41,7 +45,10 @@ def main():
                 print(f"{aldric.nom} entre dans les Cryptes d'Ombrefer... ({len(crypte)} salles)")
                 resultat = explorer(aldric, crypte)
                 if resultat:
-                    print(f"VICTOIRE ! {aldric.nom} sort de la crypte avec {aldric.piece} pièces d'or.")
+                    print(
+                        f"VICTOIRE ! {aldric.nom} sort de la crypte"
+                        f" avec {aldric.piece} pièces d'or."
+                        )
                 else:
                     print(f"{aldric.nom} a péri.")
             case "2":

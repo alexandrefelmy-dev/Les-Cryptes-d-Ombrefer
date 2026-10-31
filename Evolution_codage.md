@@ -23,4 +23,3 @@ A partir de la carte, créer une branche liée à partir de main
 Je récupère la branche en local, je code, je pousse
 Quand la fonctionnalité est finie de codée, je fait un pull request dans github pour merger ensuite vers main.
 Puis destruction de la branche de développement.
-

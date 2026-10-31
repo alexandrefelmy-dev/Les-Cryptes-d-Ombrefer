@@ -1,0 +1,7 @@
+# Configuration de markdownlint (utilisée par pre-commit et l'extension VS Code)
+# Liste des règles : https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+default: true
+
+# Pas de limite de longueur de ligne : la prose en français dépasse vite 80 caractères
+MD013: false
