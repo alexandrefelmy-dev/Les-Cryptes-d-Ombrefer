@@ -2,6 +2,8 @@
 
 import random
 
+from objet import objet_depuis_dict
+
 
 class Personnage:
     """Personnage de base avec des points de vie et une attaque."""
@@ -69,6 +71,29 @@ class Joueur(Personnage):
         """Retire l'objet à l'index donné, l'utilise et renvoie la phrase obtenue."""
         objet = self.inventaire.pop(index)
         return objet.utiliser(self)
+
+    def to_dict(self):
+        return {
+            "nom": self.nom,
+            "pv": self.pv,
+            "pv_max": self.pv_max,
+            "attaque": self.attaque,
+            "niveau": self.niveau,
+            "piece": self.piece,
+            "defense": self.defense,
+            "inventaire": [objet.to_dict() for objet in self.inventaire],
+        }
+
+    @classmethod
+    def from_dict(cls, donnees):
+        joueur = cls(donnees["nom"], donnees["pv_max"], donnees["attaque"])
+        joueur.pv = donnees["pv"]
+        joueur.niveau = donnees["niveau"]
+        joueur.piece = donnees["piece"]
+        joueur.defense = donnees["defense"]
+        joueur.inventaire = [objet_depuis_dict(objet_dict) for objet_dict in donnees["inventaire"]]
+        return joueur
+    
 
     def __str__(self):
         return f"{super().__str__()} | Niveau {self.niveau} | Or : {self.piece}"
