@@ -3,12 +3,11 @@
 import random
 
 from donjon import explorer, generer_donjon
-from objet import Potion
 from personnage import Joueur
 from sauvegarde import charger, sauvegarder
 
 
-def choisir_difficulte(aldric):
+def choisir_difficulte():
     """Demande la difficulté et renvoie un donjon de la taille correspondante."""
     print("Choix du niveau de difficulté")
     print("1. Facile\n2. Intermédiaire\n3. Difficile")
@@ -38,7 +37,7 @@ def choix_menu_principal():
 
 def jeu(joueur):
     """Lance une partie complète avec ce héros, puis propose de le sauvegarder."""
-    crypte = choisir_difficulte(joueur)
+    crypte = choisir_difficulte()
     print(f"{joueur.nom} entre dans les Cryptes d'Ombrefer... ({len(crypte)} salles)")
     resultat = explorer(joueur, crypte)
     if resultat:
@@ -74,7 +73,8 @@ def main():
                 if aldric is None:
                     print("Aucune sauvegarde trouvée.")
                     continue
-                print(f"{aldric.nom} est de retour ! {aldric.nom} (PV : {aldric.pv}/{aldric.pv_max})"
+                print(f"{aldric.nom} est de retour ! {aldric.nom} "
+                      f"(PV : {aldric.pv}/{aldric.pv_max})"
                       f" | Niveau {aldric.niveau} | Or : {aldric.piece}")
                 jeu(aldric)
             case "3":
