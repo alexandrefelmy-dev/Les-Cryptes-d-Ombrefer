@@ -73,6 +73,7 @@ class Joueur(Personnage):
         return objet.utiliser(self)
 
     def to_dict(self):
+        """Renvoie le joueur sous forme de dictionnaire (pour la sauvegarde JSON)."""
         return {
             "nom": self.nom,
             "pv": self.pv,
@@ -86,6 +87,7 @@ class Joueur(Personnage):
 
     @classmethod
     def from_dict(cls, donnees):
+        """Recrée un joueur à partir d'un dictionnaire chargé depuis la sauvegarde."""
         joueur = cls(donnees["nom"], donnees["pv_max"], donnees["attaque"])
         joueur.pv = donnees["pv"]
         joueur.niveau = donnees["niveau"]
@@ -93,7 +95,6 @@ class Joueur(Personnage):
         joueur.defense = donnees["defense"]
         joueur.inventaire = [objet_depuis_dict(objet_dict) for objet_dict in donnees["inventaire"]]
         return joueur
-    
 
     def __str__(self):
         return f"{super().__str__()} | Niveau {self.niveau} | Or : {self.piece}"
