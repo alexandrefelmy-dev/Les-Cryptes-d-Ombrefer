@@ -42,7 +42,7 @@ class Personnage:
         return f"{self.nom} (PV : {self.pv}/{self.pv_max})"
 
 
-class Joueur(Personnage):
+class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     """Personnage contrôlé par le joueur, avec défense, inventaire et or."""
 
     def __init__(self, nom, pv_max, attaque):
@@ -51,14 +51,22 @@ class Joueur(Personnage):
         self.piece = 0
         self.defense = 2
         self.inventaire = []
+        self.xp = 0
+        self.tours_defense = 0
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""
         self.piece += montant
 
+    def defense_actuelle(self):
+        """Renvoie la défense du joueur, doublée s'il se défend en ce moment."""
+        if self.tours_defense > 0:
+            return self.defense * 2
+        return self.defense
+
     def subir_degats(self, degats):
         """Réduit les dégâts avec la défense, avec 10 % de chances d'esquiver."""
-        degats_reduits = max(0, degats - self.defense)
+        degats_reduits = max(0, degats - self.defense_actuelle())
         esquive = random.random() < 0.1
         if not esquive:
             super().subir_degats(degats_reduits)
@@ -72,6 +80,19 @@ class Joueur(Personnage):
         objet = self.inventaire.pop(index)
         return objet.utiliser(self)
 
+    def gagner_xp(self, montant):
+        """Ajoute de l'XP, gère les montées de niveau et renvoie True s'il y en a eu."""
+        self.xp += montant
+        montee_de_niveau = False
+        while self.xp >= self.niveau * 20:
+            montee_de_niveau = True
+            self.xp -= self.niveau * 20
+            self.niveau += 1
+            self.pv_max += 5
+            self.attaque += 1
+            self.pv = self.pv_max
+        return montee_de_niveau
+
     def to_dict(self):
         """Renvoie le joueur sous forme de dictionnaire (pour la sauvegarde JSON)."""
         return {
@@ -83,6 +104,7 @@ class Joueur(Personnage):
             "piece": self.piece,
             "defense": self.defense,
             "inventaire": [objet.to_dict() for objet in self.inventaire],
+            "xp": self.xp,
         }
 
     @classmethod
@@ -94,6 +116,7 @@ class Joueur(Personnage):
         joueur.piece = donnees["piece"]
         joueur.defense = donnees["defense"]
         joueur.inventaire = [objet_depuis_dict(objet_dict) for objet_dict in donnees["inventaire"]]
+        joueur.xp = donnees.get("xp", 0)
         return joueur
 
     def __str__(self):

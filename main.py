@@ -2,26 +2,32 @@
 
 import random
 
-from donjon import explorer, generer_donjon
+from donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
 from personnage import Joueur
 from sauvegarde import charger, sauvegarder
 
+NB_SALLES_MIN = 6
+NB_SALLES_MAX = 9
+
 
 def choisir_difficulte():
-    """Demande la difficulté et renvoie un donjon de la taille correspondante."""
+    """Demande la difficulté et renvoie ses réglages, ou None pour revenir."""
     print("Choix du niveau de difficulté")
-    print("1. Facile\n2. Intermédiaire\n3. Difficile")
+    for numero, difficulte in DIFFICULTES.items():
+        print(f"{numero}. {difficulte.nom}")
+    print("0. Retour")
     choix = input("Ton choix : ")
-    while choix not in ("1", "2", "3"):
+    while choix != "0" and choix not in DIFFICULTES:
         print("Choix invalide.")
         choix = input("Ton choix : ")
-    match choix:
-        case "1":
-            return generer_donjon(3)
-        case "2":
-            return generer_donjon(random.randint(4, 5))
-        case "3":
-            return generer_donjon(random.randint(6, 10))
+    return DIFFICULTES.get(choix)
+
+
+def creer_heros(nom, difficulte):
+    """Crée un nouveau héros avec les stats de départ de la difficulté."""
+    joueur = Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
+    joueur.defense = difficulte.defense_joueur
+    return joueur
 
 
 def choix_menu_principal():
@@ -35,9 +41,10 @@ def choix_menu_principal():
     return choix
 
 
-def jeu(joueur):
+def jeu(joueur, difficulte):
     """Lance une partie complète avec ce héros, puis propose de le sauvegarder."""
-    crypte = choisir_difficulte()
+    nb_salles = random.randint(NB_SALLES_MIN, NB_SALLES_MAX)
+    crypte = generer_donjon(nb_salles, adapter_au_niveau(difficulte, joueur.niveau))
     print(f"{joueur.nom} entre dans les Cryptes d'Ombrefer... ({len(crypte)} salles)")
     resultat = explorer(joueur, crypte)
     if resultat:
@@ -56,27 +63,48 @@ def jeu(joueur):
         print(f"{joueur.nom} a péri.")
 
 
+def demander_nom():
+    """Demande le nom du héros. Renvoie None si le joueur tape 0 pour revenir."""
+    nom_hero = input("\nNom de ton héros (0 pour revenir) : ").strip()
+    while not nom_hero:
+        print("Le nom ne peut pas être vide.")
+        nom_hero = input("\nNom de ton héros (0 pour revenir) : ").strip()
+    if nom_hero == "0":
+        return None
+    return nom_hero
+
+
+def nouvelle_partie():
+    """Demande le nom et la difficulté, puis lance une partie avec un nouveau héros."""
+    nom_hero = demander_nom()
+    if nom_hero is None:
+        return
+    difficulte = choisir_difficulte()
+    if difficulte is not None:
+        jeu(creer_heros(nom_hero, difficulte), difficulte)
+
+
+def partie_chargee():
+    """Charge le héros sauvegardé et le relance : il garde ses stats dans tous les modes."""
+    aldric = charger()
+    if aldric is None:
+        print("Aucune sauvegarde trouvée.")
+        return
+    print(f"{aldric.nom} est de retour ! {aldric}")
+    difficulte = choisir_difficulte()
+    if difficulte is not None:
+        jeu(aldric, difficulte)
+
+
 def main():
     """Affiche le menu principal et enchaîne les parties jusqu'à ce que le joueur quitte."""
     while True:
         choix = choix_menu_principal()
         match choix:
             case "1":
-                nom_hero = input("\nNom de ton héros : ").strip()
-                while not nom_hero:
-                    print("Le nom ne peut pas être vide.")
-                    nom_hero = input("\nNom de ton héros : ").strip()
-                aldric = Joueur(nom_hero, 30, 8)
-                jeu(aldric)
+                nouvelle_partie()
             case "2":
-                aldric = charger()
-                if aldric is None:
-                    print("Aucune sauvegarde trouvée.")
-                    continue
-                print(f"{aldric.nom} est de retour ! {aldric.nom} "
-                      f"(PV : {aldric.pv}/{aldric.pv_max})"
-                      f" | Niveau {aldric.niveau} | Or : {aldric.piece}")
-                jeu(aldric)
+                partie_chargee()
             case "3":
                 print("À bientôt, aventurier !")
                 break

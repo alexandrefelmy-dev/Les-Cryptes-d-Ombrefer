@@ -4,6 +4,8 @@ import random
 
 from objet import afficher_inventaire
 
+DUREE_DEFENSE = 3
+
 
 def tour_attaque(attaquant, cible):
     """Fait attaquer la cible par l'attaquant et affiche les dégâts infligés."""
@@ -20,11 +22,14 @@ def utiliser_un_objet(joueur):
         print("Ton inventaire est vide.")
         return False
     afficher_inventaire(joueur)
+    print("  0. Retour")
     choix_objet = input("Quel objet ? ")
-    numeros = [str(n) for n in range(1, len(joueur.inventaire) + 1)]
+    numeros = [str(n) for n in range(len(joueur.inventaire) + 1)]
     while choix_objet not in numeros:
         print("Numéro invalide.")
         choix_objet = input("Quel objet ? ")
+    if choix_objet == "0":
+        return False
     index = int(choix_objet) - 1
     objet = joueur.inventaire[index]
     if not objet.peut_etre_utilise(joueur):
@@ -39,7 +44,7 @@ def choix_combat(joueur):
     print(
         f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})"
         "   3. Fuir   4. Se défendre"
-        )
+    )
     choix = input("Ton choix : ")
     while choix not in ("1", "2", "3", "4"):
         print("Réponse invalide.")
@@ -47,37 +52,75 @@ def choix_combat(joueur):
     return choix
 
 
-def combat(joueur, ennemi):
+def afficher_tour(compteur, joueur, ennemi):
+    """Affiche le numéro du tour et l'état des deux combattants."""
+    print(f"\n--- Tour {compteur} ---")
+    print(joueur)
+    print(ennemi)
+    if joueur.tours_defense > 0:
+        print(f"Défense doublée : encore {joueur.tours_defense} tour(s).")
+
+
+def action_attaquer(joueur, ennemi):
+    """Le joueur attaque, puis l'ennemi riposte s'il survit. Renvoie "victoire" ou None."""
+    tour_attaque(joueur, ennemi)
+    if not ennemi.est_vivant():
+        return "victoire"
+    tour_attaque(ennemi, joueur)
+    return None
+
+
+def action_objet(joueur, ennemi):
+    """Le joueur utilise un objet, puis l'ennemi attaque. Renvoie "annule" sinon, ou None."""
+    if not utiliser_un_objet(joueur):
+        return "annule"
+    tour_attaque(ennemi, joueur)
+    return None
+
+
+def action_fuir(joueur, ennemi, boss):
+    """Le joueur tente de fuir (50 %), sinon l'ennemi attaque. Renvoie "fuite" ou None.
+    Un boss ne peut pas être fui : la tentative échoue et le boss riposte.
+    """
+    if boss:
+        print(f"{joueur.nom} ne peut pas fuir {ennemi.nom} !")
+        tour_attaque(ennemi, joueur)
+        return None
+    if random.random() < 0.5:
+        return "fuite"
+    print("Fuite ratée !")
+    tour_attaque(ennemi, joueur)
+    return None
+
+
+def action_defendre(joueur, ennemi):
+    """Double la défense du joueur pendant 3 tours, ce tour compris, puis l'ennemi attaque."""
+    print(f"La défense est doublée pendant {DUREE_DEFENSE} tours.")
+    joueur.tours_defense = DUREE_DEFENSE
+    tour_attaque(ennemi, joueur)
+
+
+def combat(joueur, ennemi, boss=False):
     """Lance un combat et renvoie "victoire", "defaite" ou "fuite"."""
     compteur = 1
-    while joueur.est_vivant() and ennemi.est_vivant():
-        print(f"\n--- Tour {compteur} ---")
-        print(joueur)
-        print(ennemi)
-        choix = choix_combat(joueur)
-        match choix:
-            case "1":
-                tour_attaque(joueur, ennemi)
-                if ennemi.est_vivant():
-                    tour_attaque(ennemi, joueur)
-                else:
-                    return "victoire"
-            case "2":
-                resultat_objet = utiliser_un_objet(joueur)
-                if not resultat_objet:
-                    continue
-                tour_attaque(ennemi, joueur)
-            case "3":
-                fuite = random.random() < 0.5
-                if fuite:
-                    return "fuite"
-                print("Fuite ratée !")
-                tour_attaque(ennemi, joueur)
-            case "4":
-                print("La défense est doublée.")
-                defense_initial = joueur.defense
-                joueur.defense *= 2
-                tour_attaque(ennemi, joueur)
-                joueur.defense = defense_initial
-        compteur += 1
-    return "defaite"
+    try:
+        while joueur.est_vivant() and ennemi.est_vivant():
+            afficher_tour(compteur, joueur, ennemi)
+            match choix_combat(joueur):
+                case "1":
+                    if action_attaquer(joueur, ennemi) == "victoire":
+                        return "victoire"
+                case "2":
+                    if action_objet(joueur, ennemi) == "annule":
+                        continue
+                case "3":
+                    issue = action_fuir(joueur, ennemi, boss)
+                    if issue == "fuite":
+                        return "fuite"
+                case "4":
+                    action_defendre(joueur, ennemi)
+            compteur += 1
+            joueur.tours_defense = max(0, joueur.tours_defense - 1)
+        return "defaite"
+    finally:
+        joueur.tours_defense = 0
