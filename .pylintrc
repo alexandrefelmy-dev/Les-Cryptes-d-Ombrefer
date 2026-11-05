@@ -1,0 +1,3 @@
+# Les modules du jeu sont à la racine : pylint doit les trouver depuis tests/.
+[MAIN]
+init-hook=import sys; sys.path.insert(0, ".")

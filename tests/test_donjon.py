@@ -1,26 +1,20 @@
-"""Tests du jeu, sans jouer : lancer avec "python -m pytest" (pip install pytest).
+"""Tests de donjon.py : modes de difficulté, génération des salles et exploration."""
 
-Chaque test prépare une situation, appelle une méthode, puis vérifie le résultat avec assert.
-Le hasard et les saisies du clavier sont remplacés par des valeurs fixes.
-"""
-
-# Toutes les vérifications restent volontairement dans un seul fichier.
-# pylint: disable=too-many-lines
-
-import contextlib
-import json
 from unittest.mock import patch
 
 import pytest
 
-from combat import action_defendre, action_fuir, choix_combat, combat, utiliser_un_objet
+from outils import (
+    chaque_mode,
+    creer_joueur,
+    donjon_sans_danger,
+    hasard,
+    joueur_avec_potion,
+    NEUTRE,
+    saisies,
+)
+
 from donjon import (
-    DIFFICULTES,
-    MODELES_ARMES,
-    MODELES_BOSS,
-    MODELES_ENNEMIS,
-    Difficulte,
-    FORCE_PAR_NIVEAU,
     adapter_au_niveau,
     affronter_ennemi,
     ajuster,
@@ -30,439 +24,23 @@ from donjon import (
     creer_salle,
     creer_salle_boss,
     declencher_piege,
+    Difficulte,
+    DIFFICULTES,
     effacer_ecran,
     explorer,
+    FORCE_PAR_NIVEAU,
     generer_donjon,
+    MODELES_ARMES,
+    MODELES_BOSS,
+    MODELES_ENNEMIS,
     pause,
     traverser_salle,
 )
-from main import (
-    choisir_difficulte,
-    creer_heros,
-    demander_nom,
-    jeu,
-    main,
-    nouvelle_partie,
-    partie_chargee,
-)
-from objet import Arme, Objet, Potion, objet_depuis_dict
-from personnage import Ennemi, Joueur, Personnage
-from sauvegarde import charger, sauvegarder
-
-# Difficulté neutre : les modèles sont utilisés sans aucun changement.
-NEUTRE = Difficulte("Test", 30, 8, 2, 1, 1)
-
-# Lance un test une fois par mode de difficulté.
-chaque_mode = pytest.mark.parametrize(
-    "difficulte", DIFFICULTES.values(), ids=lambda difficulte: difficulte.nom
-)
-
-
-@contextlib.contextmanager
-def hasard(valeur=0.5):
-    """Fixe le hasard : random() renvoie valeur et randint() renvoie toujours le maximum.
-
-    0.5 : ni critique, ni esquive, et la fuite rate.
-    0.3 : ni critique, ni esquive, et la fuite réussit.
-    """
-    with patch("random.random", return_value=valeur):
-        with patch("random.randint", side_effect=lambda minimum, maximum: maximum):
-            yield
-
-
-def saisies(*reponses):
-    """Remplace le clavier : chaque input() renvoie la réponse suivante."""
-    return patch("builtins.input", side_effect=list(reponses))
-
-
-@pytest.fixture(name="fichier_sauvegarde")
-def fixture_fichier_sauvegarde(tmp_path, monkeypatch):
-    """Redirige la sauvegarde vers un dossier temporaire et renvoie le chemin du fichier."""
-    chemin = tmp_path / "sauvegarde.json"
-    monkeypatch.setattr("sauvegarde.FICHIER_SAUVEGARDE", str(chemin))
-    return chemin
-
-
-def creer_joueur(pv=30, attaque=8):
-    """Crée un joueur de test."""
-    return Joueur("Aldric", pv, attaque)
-
-
-def joueur_avec_potion():
-    """Crée un joueur blessé (10/30 PV) qui possède une potion de 5 PV."""
-    joueur = creer_joueur()
-    joueur.pv = 10
-    joueur.ramasser_objet(Potion("Potion", 5))
-    return joueur
-
-
-# --- Personnage ---
-
-
-def test_personnage_commence_avec_tous_ses_pv():
-    """Un nouveau personnage a tous ses PV."""
-    personnage = Personnage("Test", 20, 5)
-    assert personnage.pv == 20
-
-
-def test_subir_degats_retire_des_pv():
-    """Les dégâts sont retirés des PV."""
-    personnage = Personnage("Test", 20, 5)
-    personnage.subir_degats(8)
-    assert personnage.pv == 12
-
-
-def test_les_pv_ne_descendent_pas_sous_zero():
-    """Des dégâts énormes laissent le personnage à 0 PV."""
-    personnage = Personnage("Test", 20, 5)
-    personnage.subir_degats(100)
-    assert personnage.pv == 0
-
-
-def test_est_vivant():
-    """Un personnage à 0 PV n'est plus vivant."""
-    personnage = Personnage("Test", 20, 5)
-    assert personnage.est_vivant()
-    personnage.subir_degats(20)
-    assert not personnage.est_vivant()
-
-
-def test_soigner_renvoie_le_montant_soigne():
-    """soigner ajoute des PV et renvoie le montant soigné."""
-    personnage = Personnage("Test", 20, 5)
-    personnage.pv = 5
-    assert personnage.soigner(10) == 10
-    assert personnage.pv == 15
-
-
-def test_soigner_ne_depasse_pas_pv_max():
-    """Le soin s'arrête à pv_max et renvoie seulement ce qui a été soigné."""
-    personnage = Personnage("Test", 20, 5)
-    personnage.pv = 18
-    assert personnage.soigner(10) == 2
-    assert personnage.pv == 20
-
-
-def test_attaquer_inflige_des_degats():
-    """Sans critique, l'attaque inflige les dégâts tirés."""
-    attaquant = Personnage("A", 20, 5)
-    cible = Personnage("B", 20, 5)
-    with hasard():
-        assert attaquant.attaquer(cible) == (5, False)
-    assert cible.pv == 15
-
-
-def test_coup_critique_double_les_degats():
-    """Un coup critique double les dégâts."""
-    attaquant = Personnage("A", 20, 5)
-    cible = Personnage("B", 20, 5)
-    with hasard(0.1):
-        assert attaquant.attaquer(cible) == (10, True)
-    assert cible.pv == 10
-
-
-# --- Joueur ---
-
-
-def test_gagner_or():
-    """L'or gagné s'ajoute à celui du joueur."""
-    joueur = creer_joueur()
-    joueur.gagner_or(15)
-    joueur.gagner_or(5)
-    assert joueur.piece == 20
-
-
-def test_la_defense_reduit_les_degats():
-    """La défense de 2 retire 2 points de dégâts."""
-    joueur = creer_joueur()
-    with hasard():
-        joueur.subir_degats(10)
-    assert joueur.pv == 22
-
-
-def test_la_defense_ne_soigne_pas():
-    """Des dégâts plus faibles que la défense n'ajoutent pas de PV."""
-    joueur = creer_joueur()
-    joueur.pv = 20
-    with hasard():
-        joueur.subir_degats(1)
-    assert joueur.pv == 20
-
-
-def test_esquive_annule_les_degats():
-    """Une esquive réussie évite tous les dégâts."""
-    joueur = creer_joueur()
-    with hasard(0.05):
-        joueur.subir_degats(10)
-    assert joueur.pv == 30
-
-
-def test_ramasser_objet():
-    """L'objet ramassé arrive à la fin de l'inventaire."""
-    joueur = creer_joueur()
-    potion = Potion("Potion", 5)
-    joueur.ramasser_objet(potion)
-    assert joueur.inventaire == [potion]
-
-
-def test_utiliser_objet_retire_l_objet():
-    """Un objet utilisé fait son effet et quitte l'inventaire."""
-    joueur = joueur_avec_potion()
-    joueur.utiliser_objet(0)
-    assert joueur.pv == 15
-    assert not joueur.inventaire
-
-
-def test_gagner_xp_sans_monter_de_niveau():
-    """En dessous du seuil, le niveau ne change pas."""
-    joueur = creer_joueur()
-    assert joueur.gagner_xp(10) is False
-    assert joueur.niveau == 1
-    assert joueur.xp == 10
-
-
-def test_monter_de_niveau_ameliore_le_joueur():
-    """Une montée de niveau augmente les stats et rend tous les PV."""
-    joueur = creer_joueur()
-    joueur.pv = 1
-    assert joueur.gagner_xp(25) is True
-    assert joueur.niveau == 2
-    assert joueur.xp == 5
-    assert joueur.pv_max == 35
-    assert joueur.pv == 35
-    assert joueur.attaque == 9
-
-
-def test_plusieurs_niveaux_d_un_coup():
-    """60 XP suffisent pour passer du niveau 1 au niveau 3."""
-    joueur = creer_joueur()
-    joueur.gagner_xp(60)
-    assert joueur.niveau == 3
-    assert joueur.xp == 0
-
-
-# --- Objets ---
-
-
-def test_potion_soigne_le_joueur():
-    """Une potion rend ses PV et l'annonce."""
-    joueur = creer_joueur()
-    joueur.pv = 10
-    phrase = Potion("Potion", 5).utiliser(joueur)
-    assert joueur.pv == 15
-    assert "récupère 5 PV" in phrase
-
-
-def test_potion_montre_les_pv_apres_soin():
-    """Le message de la potion affiche les PV après le soin."""
-    joueur = creer_joueur()
-    joueur.pv = 10
-    phrase = Potion("Potion", 5).utiliser(joueur)
-    assert "(PV : 15/30)" in phrase
-
-
-def test_potion_en_combat_montre_les_pv(capsys):
-    """En combat, les PV après la potion sont affichés avant l'attaque de l'ennemi."""
-    joueur = joueur_avec_potion()
-    with hasard(), saisies("1"):
-        utiliser_un_objet(joueur)
-    sortie = capsys.readouterr().out
-    assert "(PV : 15/30)" in sortie
-
-
-def test_potion_refusee_si_pv_pleins():
-    """Une potion ne peut pas être bue avec tous ses PV."""
-    joueur = creer_joueur()
-    assert not Potion("Potion", 5).peut_etre_utilise(joueur)
-    joueur.pv = 29
-    assert Potion("Potion", 5).peut_etre_utilise(joueur)
-
-
-def test_arme_augmente_l_attaque():
-    """Une arme ajoute son bonus à l'attaque."""
-    joueur = creer_joueur()
-    Arme("Epée", 3).utiliser(joueur)
-    assert joueur.attaque == 11
-
-
-def test_objet_de_base_toujours_utilisable():
-    """Un objet de base peut toujours être utilisé."""
-    assert Objet("Caillou").peut_etre_utilise(creer_joueur())
-
-
-def test_potion_depuis_dict():
-    """Une potion passée en dictionnaire redevient une potion."""
-    potion = objet_depuis_dict(Potion("Potion", 5).to_dict())
-    assert isinstance(potion, Potion)
-    assert (potion.nom, potion.soin) == ("Potion", 5)
-
-
-def test_arme_depuis_dict():
-    """Une arme passée en dictionnaire redevient une arme."""
-    arme = objet_depuis_dict(Arme("Epée", 3).to_dict())
-    assert isinstance(arme, Arme)
-    assert (arme.nom, arme.bonus) == ("Epée", 3)
-
-
-def test_objet_inconnu_depuis_dict():
-    """Un type inconnu ne donne aucun objet."""
-    assert objet_depuis_dict({"type": "inconnu"}) is None
-
-
-# --- Combat ---
-
-
-def test_choix_combat_redemande_si_invalide():
-    """Une réponse invalide est redemandée."""
-    with saisies("9", "abc", "2"):
-        assert choix_combat(creer_joueur()) == "2"
-
-
-def test_combat_gagne():
-    """Le joueur gagne s'il tue l'ennemi, sans riposte de sa part."""
-    joueur = creer_joueur()
-    with hasard(), saisies("1"):
-        assert combat(joueur, Ennemi("Rat", 8, 4, 3)) == "victoire"
-    assert joueur.pv == 30
-
-
-def test_combat_perdu():
-    """Le joueur perd s'il tombe à 0 PV."""
-    joueur = creer_joueur(pv=5, attaque=1)
-    with hasard(), saisies("1"):
-        assert combat(joueur, Ennemi("Ogre", 100, 50, 0)) == "defaite"
-    assert joueur.pv == 0
-
-
-def test_fuite_reussie():
-    """Une fuite réussie termine le combat sans dégâts."""
-    joueur = creer_joueur()
-    with hasard(0.3), saisies("3"):
-        assert combat(joueur, Ennemi("Rat", 8, 4, 3)) == "fuite"
-    assert joueur.pv == 30
-
-
-def test_fuite_ratee_donne_une_riposte():
-    """Après une fuite ratée, l'ennemi attaque."""
-    joueur = creer_joueur()
-    with hasard():
-        assert action_fuir(joueur, Ennemi("Rat", 8, 10, 3), False) is None
-    assert joueur.pv == 22
-
-
-def test_impossible_de_fuir_un_boss():
-    """Même avec un bon tirage, un boss ne peut pas être fui."""
-    joueur = creer_joueur()
-    with hasard(0.3):
-        assert action_fuir(joueur, Ennemi("Boss", 50, 10, 0), True) is None
-    assert joueur.pv == 22
-
-
-# --- Se défendre ---
-
-
-def test_defendre_double_la_defense_sans_la_modifier():
-    """Le bonus double la défense actuelle mais pas la défense de base."""
-    joueur = creer_joueur()
-    with hasard():
-        action_defendre(joueur, Ennemi("Rat", 8, 10, 3))
-    assert joueur.tours_defense == 3
-    assert joueur.defense_actuelle() == 4
-    assert joueur.defense == 2
-    assert joueur.pv == 24
-
-
-def test_defendre_dure_trois_tours():
-    """Dégâts de 10 : 6 + 6 + 6 avec le bonus, puis 8 sans lui."""
-    joueur = creer_joueur(pv=100, attaque=1)
-    with hasard(), saisies("4", "1", "1", "1", "1"):
-        combat(joueur, Ennemi("Ogre", 4, 10, 0))
-    assert joueur.pv == 74
-
-
-def test_se_redefendre_relance_sans_cumuler():
-    """Se redéfendre remet le compteur à 3, sans quadrupler la défense."""
-    joueur = creer_joueur(pv=100, attaque=1)
-    with hasard(), saisies("4", "1", "4", "1", "1", "1", "1"):
-        combat(joueur, Ennemi("Ogre", 5, 10, 0))
-    assert joueur.pv == 100 - 6 * 5 - 8
-
-
-def test_bonus_retire_apres_une_victoire():
-    """Le bonus ne survit pas à une victoire."""
-    joueur = creer_joueur(attaque=8)
-    with hasard(), saisies("4", "1"):
-        combat(joueur, Ennemi("Rat", 8, 4, 3))
-    assert joueur.tours_defense == 0
-    assert joueur.defense_actuelle() == 2
-
-
-def test_bonus_retire_apres_une_fuite():
-    """Le bonus ne survit pas à une fuite."""
-    joueur = creer_joueur()
-    with hasard(0.3), saisies("4", "3"):
-        combat(joueur, Ennemi("Rat", 8, 4, 3))
-    assert joueur.tours_defense == 0
-
-
-def test_bonus_retire_apres_une_defaite():
-    """Le bonus ne survit pas à une défaite."""
-    joueur = creer_joueur(pv=5)
-    with hasard(), saisies("4"):
-        combat(joueur, Ennemi("Ogre", 100, 50, 0))
-    assert joueur.tours_defense == 0
+from objet import Arme, Potion
+from personnage import Ennemi
 
 
 # --- Option 0 (retour) ---
-
-
-def test_retour_du_choix_d_objet():
-    """Taper 0 ne consomme aucun objet."""
-    joueur = joueur_avec_potion()
-    with saisies("0"):
-        assert utiliser_un_objet(joueur) is False
-    assert len(joueur.inventaire) == 1
-    assert joueur.pv == 10
-
-
-def test_numero_d_objet_invalide_redemande():
-    """Un numéro invalide est redemandé."""
-    joueur = joueur_avec_potion()
-    with saisies("9", "x", "1"):
-        assert utiliser_un_objet(joueur) is True
-    assert joueur.pv == 15
-
-
-def test_inventaire_vide():
-    """Sans objet, rien n'est demandé au joueur."""
-    assert utiliser_un_objet(creer_joueur()) is False
-
-
-def test_potion_refusee_reste_dans_l_inventaire():
-    """Une potion refusée n'est pas perdue."""
-    joueur = creer_joueur()
-    joueur.ramasser_objet(Potion("Potion", 5))
-    with saisies("1"):
-        assert utiliser_un_objet(joueur) is False
-    assert len(joueur.inventaire) == 1
-
-
-def test_retour_en_combat_sans_riposte():
-    """Revenir du choix d'objet ne donne pas d'attaque à l'ennemi."""
-    joueur = joueur_avec_potion()
-    with hasard(), saisies("2", "0", "1"):
-        combat(joueur, Ennemi("Rat", 8, 4, 3))
-    assert joueur.pv == 10
-
-
-def test_retour_ne_consomme_pas_un_tour_de_defense(capsys):
-    """Le tour 2 s'affiche deux fois, avec le même compteur, avant et après le retour."""
-    joueur = joueur_avec_potion()
-    with hasard(), saisies("4", "2", "0", "1"):
-        combat(joueur, Ennemi("Ogre", 1, 1, 0))
-    sortie = capsys.readouterr().out
-    assert sortie.count("encore 2 tour(s)") == 2
-    assert "encore 1 tour(s)" not in sortie
 
 
 def test_retour_de_la_pause():
@@ -473,61 +51,7 @@ def test_retour_de_la_pause():
     assert len(joueur.inventaire) == 1
 
 
-def test_retour_de_la_difficulte():
-    """Taper 0 ne crée pas de donjon."""
-    with saisies("0"):
-        assert choisir_difficulte() is None
-
-
-def test_retour_de_la_difficulte_ne_lance_pas_de_partie(capsys):
-    """Après un retour, aucune partie ne démarre."""
-    with saisies("Aldric", "0"):
-        nouvelle_partie()
-    assert "entre dans" not in capsys.readouterr().out
-
-
-def test_retour_du_nom():
-    """Taper 0 annule la saisie du nom."""
-    with saisies("0"):
-        assert demander_nom() is None
-
-
-def test_nom_vide_redemande():
-    """Un nom vide est redemandé."""
-    with saisies("   ", "Aldric"):
-        assert demander_nom() == "Aldric"
-
-
-def test_un_nom_commencant_par_zero_reste_valide():
-    """Seul le 0 exact sert de retour."""
-    with saisies("007"):
-        assert demander_nom() == "007"
-
-
-def test_retours_depuis_le_menu_principal(capsys):
-    """Le joueur revient du nom, puis de la difficulté, puis quitte."""
-    with saisies("1", "0", "1", "Aldric", "0", "3"):
-        main()
-    sortie = capsys.readouterr().out
-    assert sortie.count("=== Les Cryptes d'Ombrefer ===") == 3
-    assert "entre dans" not in sortie
-    assert "À bientôt" in sortie
-
-
 # --- Difficulté ---
-
-
-@pytest.mark.parametrize("numero", DIFFICULTES)
-def test_les_trois_modes_sont_proposes(numero):
-    """Chaque numéro du menu renvoie le bon mode."""
-    with saisies(numero):
-        assert choisir_difficulte() is DIFFICULTES[numero]
-
-
-def test_difficulte_invalide_redemande():
-    """Une difficulté invalide est redemandée."""
-    with saisies("7", "1"):
-        assert choisir_difficulte() is DIFFICULTES["1"]
 
 
 def test_les_ennemis_se_renforcent_avec_la_difficulte():
@@ -560,15 +84,6 @@ def test_ajuster_arrondit():
 def test_ajuster_ne_descend_pas_sous_un():
     """Une valeur ajustée vaut au moins 1."""
     assert ajuster(1, 0.1) == 1
-
-
-def test_creer_heros_utilise_les_stats_du_mode():
-    """Le héros reçoit les PV, l'attaque et la défense du mode."""
-    difficulte = Difficulte("Test", 21, 6, 4, 1, 1)
-    joueur = creer_heros("Aldric", difficulte)
-    assert (joueur.nom, joueur.pv, joueur.pv_max) == ("Aldric", 21, 21)
-    assert joueur.attaque == 6
-    assert joueur.defense == 4
 
 
 def test_creer_ennemi_selon_la_force():
@@ -713,63 +228,6 @@ def test_adapter_au_niveau_ne_modifie_pas_le_mode():
     force = difficulte.force_ennemis
     adapter_au_niveau(difficulte, 8)
     assert difficulte.force_ennemis == force
-
-
-def test_le_donjon_suit_le_niveau_du_heros():
-    """jeu crée un donjon adapté au niveau du héros."""
-    joueur = creer_joueur()
-    joueur.niveau = 4
-    with patch("main.explorer", return_value=False):
-        with patch("main.generer_donjon", return_value=[]) as generer:
-            jeu(joueur, NEUTRE)
-    assert generer.call_args.args[1].force_ennemis == 1 + 3 * FORCE_PAR_NIVEAU
-
-
-@chaque_mode
-def test_de_6_a_9_salles_dans_tous_les_modes(difficulte, capsys):
-    """Tous les modes tirent entre 6 et 9 salles, et toutes ces tailles sortent."""
-    tailles = set()
-    for _ in range(200):
-        with patch("main.explorer", return_value=False):
-            jeu(creer_joueur(), difficulte)
-        sortie = capsys.readouterr().out
-        tailles.add(int(sortie.split("(")[1].split()[0]))
-    assert tailles == {6, 7, 8, 9}
-
-
-def test_nouvelle_partie_cree_le_heros_du_mode():
-    """Une nouvelle partie utilise les stats du mode choisi."""
-    with saisies("Aldric", "3"), patch("main.jeu") as jeu_simule:
-        nouvelle_partie()
-    joueur, difficulte = jeu_simule.call_args.args
-    assert difficulte is DIFFICULTES["3"]
-    assert joueur.nom == "Aldric"
-    assert joueur.pv_max == difficulte.pv_joueur
-
-
-def test_heros_charge_garde_ses_stats():
-    """Un héros chargé ne prend pas les stats de départ du mode."""
-    joueur = creer_joueur(pv=77, attaque=20)
-    with patch("main.charger", return_value=joueur), saisies("3"):
-        with patch("main.jeu") as jeu_simule:
-            partie_chargee()
-    assert jeu_simule.call_args.args == (joueur, DIFFICULTES["3"])
-    assert (joueur.pv_max, joueur.attaque) == (77, 20)
-
-
-def test_retour_apres_chargement():
-    """Revenir de la difficulté après un chargement ne lance pas de partie."""
-    with patch("main.charger", return_value=creer_joueur()), saisies("0"):
-        with patch("main.jeu") as jeu_simule:
-            partie_chargee()
-    assert not jeu_simule.called
-
-
-def test_chargement_sans_sauvegarde():
-    """Sans sauvegarde, la difficulté n'est même pas demandée."""
-    with patch("main.charger", return_value=None), patch("main.jeu") as jeu_simule:
-        partie_chargee()
-    assert not jeu_simule.called
 
 
 # --- Donjon ---
@@ -1084,15 +542,6 @@ def test_explorer_s_arrete_a_la_mort():
         assert explorer(joueur, donjon) is False
 
 
-def donjon_sans_danger(nb_salles):
-    """Crée un donjon sans ennemi ni piège."""
-    donjon = generer_donjon(nb_salles, NEUTRE)
-    for salle in donjon:
-        salle.ennemi = None
-        salle.piege = False
-    return donjon
-
-
 def test_ecran_efface_entre_les_salles_seulement():
     """Avec 3 salles, l'écran est effacé 2 fois : pas avant la première."""
     with saisies("2", "2", "2"), patch("donjon.effacer_ecran") as effacer:
@@ -1144,51 +593,3 @@ def test_explorer_jusqu_au_bout():
         salle.piege = False
     with saisies("2", "2"):
         assert explorer(joueur, donjon) is True
-
-
-# --- Sauvegarde ---
-
-
-@pytest.mark.usefixtures("fichier_sauvegarde")
-def test_sauvegarder_puis_charger():
-    """Un héros sauvegardé revient à l'identique."""
-    joueur = creer_joueur()
-    joueur.pv = 12
-    joueur.gagner_or(40)
-    joueur.gagner_xp(25)
-    joueur.ramasser_objet(Potion("Potion", 5))
-    joueur.ramasser_objet(Arme("Epée", 3))
-    sauvegarder(joueur)
-    charge = charger()
-    assert charge.to_dict() == joueur.to_dict()
-    assert isinstance(charge.inventaire[0], Potion)
-    assert isinstance(charge.inventaire[1], Arme)
-
-
-def test_bonus_de_defense_jamais_sauvegarde():
-    """Sauvegarder pendant le bonus n'écrit ni le compteur ni la défense doublée."""
-    joueur = creer_joueur()
-    joueur.tours_defense = 3
-    donnees = joueur.to_dict()
-    assert "tours_defense" not in donnees
-    assert donnees["defense"] == 2
-
-
-@pytest.mark.usefixtures("fichier_sauvegarde")
-def test_charger_sans_fichier():
-    """Sans sauvegarde, charger renvoie None."""
-    assert charger() is None
-
-
-def test_charger_fichier_corrompu(fichier_sauvegarde):
-    """Un fichier illisible (ou vide) renvoie None sans planter."""
-    fichier_sauvegarde.write_text("", encoding="utf-8")
-    assert charger() is None
-
-
-def test_charger_ancienne_sauvegarde_sans_xp(fichier_sauvegarde):
-    """Une sauvegarde d'avant l'XP se charge avec 0 XP."""
-    donnees = creer_joueur().to_dict()
-    del donnees["xp"]
-    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
-    assert charger().xp == 0
