@@ -1,4 +1,4 @@
-"""Tests du jeu, sans jouer : lancer avec "python tests.py".
+"""Tests du jeu, sans jouer : lancer avec "python -m pytest" (pip install pytest).
 
 Chaque test prépare une situation, appelle une méthode, puis vérifie le résultat avec assert.
 Le hasard et les saisies du clavier sont remplacés par des valeurs fixes.
@@ -8,13 +8,10 @@ Le hasard et les saisies du clavier sont remplacés par des valeurs fixes.
 # pylint: disable=too-many-lines
 
 import contextlib
-import io
 import json
-import os
-import sys
-import tempfile
-import traceback
 from unittest.mock import patch
+
+import pytest
 
 from combat import action_defendre, action_fuir, choix_combat, combat, utiliser_un_objet
 from donjon import (
@@ -55,6 +52,11 @@ from sauvegarde import charger, sauvegarder
 # Difficulté neutre : les modèles sont utilisés sans aucun changement.
 NEUTRE = Difficulte("Test", 30, 8, 2, 1, 1)
 
+# Lance un test une fois par mode de difficulté.
+chaque_mode = pytest.mark.parametrize(
+    "difficulte", DIFFICULTES.values(), ids=lambda difficulte: difficulte.nom
+)
+
 
 @contextlib.contextmanager
 def hasard(valeur=0.5):
@@ -73,12 +75,12 @@ def saisies(*reponses):
     return patch("builtins.input", side_effect=list(reponses))
 
 
-def sortie_de(fonction, *arguments):
-    """Appelle la fonction et renvoie ce qu'elle a affiché."""
-    sortie = io.StringIO()
-    with contextlib.redirect_stdout(sortie):
-        fonction(*arguments)
-    return sortie.getvalue()
+@pytest.fixture(name="fichier_sauvegarde")
+def fixture_fichier_sauvegarde(tmp_path, monkeypatch):
+    """Redirige la sauvegarde vers un dossier temporaire et renvoie le chemin du fichier."""
+    chemin = tmp_path / "sauvegarde.json"
+    monkeypatch.setattr("sauvegarde.FICHIER_SAUVEGARDE", str(chemin))
+    return chemin
 
 
 def creer_joueur(pv=30, attaque=8):
@@ -259,11 +261,12 @@ def test_potion_montre_les_pv_apres_soin():
     assert "(PV : 15/30)" in phrase
 
 
-def test_potion_en_combat_montre_les_pv():
+def test_potion_en_combat_montre_les_pv(capsys):
     """En combat, les PV après la potion sont affichés avant l'attaque de l'ennemi."""
     joueur = joueur_avec_potion()
     with hasard(), saisies("1"):
-        sortie = sortie_de(utiliser_un_objet, joueur)
+        utiliser_un_objet(joueur)
+    sortie = capsys.readouterr().out
     assert "(PV : 15/30)" in sortie
 
 
@@ -452,11 +455,12 @@ def test_retour_en_combat_sans_riposte():
     assert joueur.pv == 10
 
 
-def test_retour_ne_consomme_pas_un_tour_de_defense():
+def test_retour_ne_consomme_pas_un_tour_de_defense(capsys):
     """Le tour 2 s'affiche deux fois, avec le même compteur, avant et après le retour."""
     joueur = joueur_avec_potion()
     with hasard(), saisies("4", "2", "0", "1"):
-        sortie = sortie_de(combat, joueur, Ennemi("Ogre", 1, 1, 0))
+        combat(joueur, Ennemi("Ogre", 1, 1, 0))
+    sortie = capsys.readouterr().out
     assert sortie.count("encore 2 tour(s)") == 2
     assert "encore 1 tour(s)" not in sortie
 
@@ -475,10 +479,11 @@ def test_retour_de_la_difficulte():
         assert choisir_difficulte() is None
 
 
-def test_retour_de_la_difficulte_ne_lance_pas_de_partie():
+def test_retour_de_la_difficulte_ne_lance_pas_de_partie(capsys):
     """Après un retour, aucune partie ne démarre."""
     with saisies("Aldric", "0"):
-        assert "entre dans" not in sortie_de(nouvelle_partie)
+        nouvelle_partie()
+    assert "entre dans" not in capsys.readouterr().out
 
 
 def test_retour_du_nom():
@@ -499,10 +504,11 @@ def test_un_nom_commencant_par_zero_reste_valide():
         assert demander_nom() == "007"
 
 
-def test_retours_depuis_le_menu_principal():
+def test_retours_depuis_le_menu_principal(capsys):
     """Le joueur revient du nom, puis de la difficulté, puis quitte."""
     with saisies("1", "0", "1", "Aldric", "0", "3"):
-        sortie = sortie_de(main)
+        main()
+    sortie = capsys.readouterr().out
     assert sortie.count("=== Les Cryptes d'Ombrefer ===") == 3
     assert "entre dans" not in sortie
     assert "À bientôt" in sortie
@@ -511,11 +517,11 @@ def test_retours_depuis_le_menu_principal():
 # --- Difficulté ---
 
 
-def test_les_trois_modes_sont_proposes():
+@pytest.mark.parametrize("numero", DIFFICULTES)
+def test_les_trois_modes_sont_proposes(numero):
     """Chaque numéro du menu renvoie le bon mode."""
-    for numero, difficulte in DIFFICULTES.items():
-        with saisies(numero):
-            assert choisir_difficulte() is difficulte
+    with saisies(numero):
+        assert choisir_difficulte() is DIFFICULTES[numero]
 
 
 def test_difficulte_invalide_redemande():
@@ -653,13 +659,13 @@ def test_reste_du_butin_selon_le_mode():
         assert isinstance(creer_butin(difficulte), Arme)
 
 
-def test_ordre_de_rarete_des_armes_dans_tous_les_modes():
+@chaque_mode
+def test_ordre_de_rarete_des_armes_dans_tous_les_modes(difficulte):
     """Dans chaque mode, chaque arme reste plus fréquente que la suivante."""
-    for difficulte in DIFFICULTES.values():
-        with patch("random.choices", return_value=[MODELES_ARMES[0]]) as tirage:
-            creer_arme(difficulte)
-        poids = tirage.call_args.kwargs["weights"]
-        assert poids == sorted(set(poids), reverse=True)
+    with patch("random.choices", return_value=[MODELES_ARMES[0]]) as tirage:
+        creer_arme(difficulte)
+    poids = tirage.call_args.kwargs["weights"]
+    assert poids == sorted(set(poids), reverse=True)
 
 
 def test_armes_rares_plus_frequentes_quand_c_est_plus_dur():
@@ -681,11 +687,11 @@ def test_seigneur_vampire_seulement_en_difficile():
     assert DIFFICULTES["3"].nb_boss == 4
 
 
-def test_boss_possibles_selon_le_mode():
+@chaque_mode
+def test_boss_possibles_selon_le_mode(difficulte):
     """Sur beaucoup de tirages, seuls les boss autorisés sortent."""
-    for difficulte in DIFFICULTES.values():
-        noms = {creer_salle_boss([], difficulte).ennemi.nom for _ in range(300)}
-        assert noms == {modele[0][0] for modele in MODELES_BOSS[:difficulte.nb_boss]}
+    noms = {creer_salle_boss([], difficulte).ennemi.nom for _ in range(300)}
+    assert noms == {modele[0][0] for modele in MODELES_BOSS[:difficulte.nb_boss]}
 
 
 def test_niveau_1_ne_change_rien():
@@ -715,19 +721,20 @@ def test_le_donjon_suit_le_niveau_du_heros():
     joueur.niveau = 4
     with patch("main.explorer", return_value=False):
         with patch("main.generer_donjon", return_value=[]) as generer:
-            sortie_de(jeu, joueur, NEUTRE)
+            jeu(joueur, NEUTRE)
     assert generer.call_args.args[1].force_ennemis == 1 + 3 * FORCE_PAR_NIVEAU
 
 
-def test_de_6_a_9_salles_dans_tous_les_modes():
+@chaque_mode
+def test_de_6_a_9_salles_dans_tous_les_modes(difficulte, capsys):
     """Tous les modes tirent entre 6 et 9 salles, et toutes ces tailles sortent."""
-    for difficulte in DIFFICULTES.values():
-        tailles = set()
-        for _ in range(200):
-            with patch("main.explorer", return_value=False):
-                sortie = sortie_de(jeu, creer_joueur(), difficulte)
-            tailles.add(int(sortie.split("(")[1].split()[0]))
-        assert tailles == {6, 7, 8, 9}
+    tailles = set()
+    for _ in range(200):
+        with patch("main.explorer", return_value=False):
+            jeu(creer_joueur(), difficulte)
+        sortie = capsys.readouterr().out
+        tailles.add(int(sortie.split("(")[1].split()[0]))
+    assert tailles == {6, 7, 8, 9}
 
 
 def test_nouvelle_partie_cree_le_heros_du_mode():
@@ -849,13 +856,13 @@ def test_la_meilleure_arme_est_tres_rare_et_tres_forte():
     assert bonus >= MODELES_ARMES[-2][1] * 1.5
 
 
-def test_creer_arme_respecte_son_modele():
+@pytest.mark.parametrize("modele", MODELES_ARMES, ids=lambda modele: modele[0])
+def test_creer_arme_respecte_son_modele(modele):
     """Chaque modèle donne une arme avec le bon nom et le bon bonus."""
-    for modele in MODELES_ARMES:
-        with patch("random.choices", return_value=[modele]):
-            arme = creer_arme(NEUTRE)
-        assert isinstance(arme, Arme)
-        assert (arme.nom, arme.bonus) == modele[:2]
+    with patch("random.choices", return_value=[modele]):
+        arme = creer_arme(NEUTRE)
+    assert isinstance(arme, Arme)
+    assert (arme.nom, arme.bonus) == modele[:2]
 
 
 def test_frequences_des_armes():
@@ -908,16 +915,16 @@ def test_le_roi_liche_est_un_boss():
     assert (("Roi liche", 50, 12, 50), ("Epée du roi liche", 10)) in MODELES_BOSS
 
 
-def test_chaque_boss_a_sa_salle():
+@pytest.mark.parametrize("stats, arme", MODELES_BOSS, ids=[boss[0][0] for boss in MODELES_BOSS])
+def test_chaque_boss_a_sa_salle(stats, arme):
     """Chaque modèle donne bien son boss et son arme dans la salle finale."""
-    for stats, arme in MODELES_BOSS:
-        with patch("random.choice", return_value=(stats, arme)):
-            salle = creer_salle_boss([], NEUTRE)
-        assert salle.ennemi.nom == stats[0]
-        assert salle.ennemi.pv == stats[1]
-        assert salle.ennemi.recompense == stats[3]
-        assert salle.butin.nom == arme[0]
-        assert salle.boss
+    with patch("random.choice", return_value=(stats, arme)):
+        salle = creer_salle_boss([], NEUTRE)
+    assert salle.ennemi.nom == stats[0]
+    assert salle.ennemi.pv == stats[1]
+    assert salle.ennemi.recompense == stats[3]
+    assert salle.butin.nom == arme[0]
+    assert salle.boss
 
 
 def test_les_quatre_boss_peuvent_sortir():
@@ -991,23 +998,25 @@ def test_defaite_ne_rapporte_pas_d_xp():
     assert joueur.xp == 0
 
 
-def test_statut_affiche_apres_une_montee_de_niveau():
+def test_statut_affiche_apres_une_montee_de_niveau(capsys):
     """Après la montée de niveau, le statut complet du héros est affiché."""
     joueur = creer_joueur()
     with hasard(), saisies("1"):
-        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 20))
+        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 20))
+    sortie = capsys.readouterr().out
     assert "Aldric (PV : 35/35) | Niveau 2 | Or : 20" in sortie
 
 
-def test_statut_pas_affiche_sans_montee_de_niveau():
+def test_statut_pas_affiche_sans_montee_de_niveau(capsys):
     """Sans montée de niveau, le statut n'est pas répété après le combat."""
     joueur = creer_joueur()
     with hasard(), saisies("1"):
-        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 3))
+        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 3))
+    sortie = capsys.readouterr().out
     assert "Niveau 1 | Or : 3" not in sortie
 
 
-def test_fin_de_salle_aeree():
+def test_fin_de_salle_aeree(capsys):
     """Victoire, niveau, butin et menu sont séparés par une ligne vide."""
     joueur = creer_joueur()
     salle = creer_salle(1, NEUTRE)
@@ -1015,36 +1024,40 @@ def test_fin_de_salle_aeree():
     salle.butin = Potion("Potion", 5)
     salle.piege = False
     with hasard(), saisies("1", "2"):
-        sortie = sortie_de(traverser_salle, joueur, salle)
+        traverser_salle(joueur, salle)
+    sortie = capsys.readouterr().out
     for texte in ("Rat est vaincu", "Aldric passe au niveau", "Aldric trouve", "1. Utiliser"):
         assert f"\n\n{texte}" in sortie
 
 
-def test_fuite_aeree():
+def test_fuite_aeree(capsys):
     """La fuite et le menu de pause sont séparés du combat par une ligne vide."""
     joueur = creer_joueur()
     with hasard(0.3), saisies("3", "2"):
-        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 3))
+        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 3))
+    sortie = capsys.readouterr().out
     assert "\n\nAldric s'enfuit" in sortie
     assert "\n\n1. Utiliser" in sortie
 
 
-def test_tuer_un_ennemi_peut_faire_monter_de_niveau():
+def test_tuer_un_ennemi_peut_faire_monter_de_niveau(capsys):
     """Avec assez d'XP, le joueur monte de niveau et l'annonce."""
     joueur = creer_joueur()
     joueur.pv = 1
     with hasard(), saisies("1"):
-        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 20))
+        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 20))
+    sortie = capsys.readouterr().out
     assert joueur.niveau == 2
     assert joueur.pv == joueur.pv_max
     assert "passe au niveau 2 !" in sortie
 
 
-def test_pas_d_annonce_sans_montee_de_niveau():
+def test_pas_d_annonce_sans_montee_de_niveau(capsys):
     """Sans montée de niveau, rien n'est annoncé."""
     joueur = creer_joueur()
     with hasard(), saisies("1"):
-        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 3))
+        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 3))
+    sortie = capsys.readouterr().out
     assert "passe au niveau" not in sortie
 
 
@@ -1136,6 +1149,7 @@ def test_explorer_jusqu_au_bout():
 # --- Sauvegarde ---
 
 
+@pytest.mark.usefixtures("fichier_sauvegarde")
 def test_sauvegarder_puis_charger():
     """Un héros sauvegardé revient à l'identique."""
     joueur = creer_joueur()
@@ -1144,10 +1158,8 @@ def test_sauvegarder_puis_charger():
     joueur.gagner_xp(25)
     joueur.ramasser_objet(Potion("Potion", 5))
     joueur.ramasser_objet(Arme("Epée", 3))
-    with tempfile.TemporaryDirectory() as dossier:
-        with patch("sauvegarde.FICHIER_SAUVEGARDE", os.path.join(dossier, "test.json")):
-            sauvegarder(joueur)
-            charge = charger()
+    sauvegarder(joueur)
+    charge = charger()
     assert charge.to_dict() == joueur.to_dict()
     assert isinstance(charge.inventaire[0], Potion)
     assert isinstance(charge.inventaire[1], Arme)
@@ -1162,50 +1174,21 @@ def test_bonus_de_defense_jamais_sauvegarde():
     assert donnees["defense"] == 2
 
 
+@pytest.mark.usefixtures("fichier_sauvegarde")
 def test_charger_sans_fichier():
     """Sans sauvegarde, charger renvoie None."""
-    with tempfile.TemporaryDirectory() as dossier:
-        with patch("sauvegarde.FICHIER_SAUVEGARDE", os.path.join(dossier, "absent.json")):
-            assert charger() is None
+    assert charger() is None
 
 
-def test_charger_fichier_corrompu():
+def test_charger_fichier_corrompu(fichier_sauvegarde):
     """Un fichier illisible (ou vide) renvoie None sans planter."""
-    with tempfile.TemporaryDirectory() as dossier:
-        chemin = os.path.join(dossier, "vide.json")
-        with open(chemin, "w", encoding="utf-8"):
-            pass
-        with patch("sauvegarde.FICHIER_SAUVEGARDE", chemin):
-            assert charger() is None
+    fichier_sauvegarde.write_text("", encoding="utf-8")
+    assert charger() is None
 
 
-def test_charger_ancienne_sauvegarde_sans_xp():
+def test_charger_ancienne_sauvegarde_sans_xp(fichier_sauvegarde):
     """Une sauvegarde d'avant l'XP se charge avec 0 XP."""
     donnees = creer_joueur().to_dict()
     del donnees["xp"]
-    with tempfile.TemporaryDirectory() as dossier:
-        chemin = os.path.join(dossier, "ancienne.json")
-        with open(chemin, "w", encoding="utf-8") as fichier:
-            json.dump(donnees, fichier)
-        with patch("sauvegarde.FICHIER_SAUVEGARDE", chemin):
-            assert charger().xp == 0
-
-
-def lancer_tests():
-    """Lance toutes les fonctions test_...() et renvoie le nombre d'échecs."""
-    tests = [(nom, objet) for nom, objet in globals().items() if nom.startswith("test_")]
-    echecs = 0
-    for nom, test in tests:
-        try:
-            with contextlib.redirect_stdout(io.StringIO()):
-                test()
-            print(f"OK     {nom}")
-        except Exception:  # pylint: disable=broad-exception-caught
-            echecs += 1
-            print(f"ÉCHEC  {nom}\n{traceback.format_exc()}")
-    print(f"\n{len(tests) - echecs}/{len(tests)} tests réussis.")
-    return echecs
-
-
-if __name__ == "__main__":
-    sys.exit(1 if lancer_tests() else 0)
+    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
+    assert charger().xp == 0
