@@ -1,6 +1,8 @@
 """Génération aléatoire du donjon (salles, ennemis, butin, pièges) et exploration."""
 
+import os
 import random
+import sys
 from dataclasses import dataclass, replace
 
 from objet import Potion, Arme
@@ -238,9 +240,17 @@ def traverser_salle(joueur, salle):
     return True
 
 
+def effacer_ecran():
+    """Efface le texte du terminal (rien à faire si la sortie n'est pas un vrai terminal)."""
+    if sys.stdout.isatty():
+        os.system("cls" if os.name == "nt" else "clear")
+
+
 def explorer(joueur, donjon):
     """Fait traverser les salles au joueur. Renvoie True s'il sort vivant du donjon."""
     for salle in donjon:
+        if salle.numero > 1:
+            effacer_ecran()
         print(f"\n=== Salle {salle.numero}/{len(donjon)} ===")
         if not traverser_salle(joueur, salle):
             return False

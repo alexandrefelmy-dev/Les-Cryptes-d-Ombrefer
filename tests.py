@@ -33,6 +33,7 @@ from donjon import (
     creer_salle,
     creer_salle_boss,
     declencher_piege,
+    effacer_ecran,
     explorer,
     generer_donjon,
     pause,
@@ -1014,6 +1015,57 @@ def test_explorer_s_arrete_a_la_mort():
         salle.piege = False
     with hasard(), saisies("1"):
         assert explorer(joueur, donjon) is False
+
+
+def donjon_sans_danger(nb_salles):
+    """Crée un donjon sans ennemi ni piège."""
+    donjon = generer_donjon(nb_salles, NEUTRE)
+    for salle in donjon:
+        salle.ennemi = None
+        salle.piege = False
+    return donjon
+
+
+def test_ecran_efface_entre_les_salles_seulement():
+    """Avec 3 salles, l'écran est effacé 2 fois : pas avant la première."""
+    with saisies("2", "2", "2"), patch("donjon.effacer_ecran") as effacer:
+        explorer(creer_joueur(), donjon_sans_danger(3))
+    assert effacer.call_count == 2
+
+
+def test_ecran_efface_apres_la_pause():
+    """Le texte d'une salle reste affiché tant que le joueur n'a pas quitté la pause."""
+    appels = []
+    with patch("donjon.effacer_ecran", side_effect=lambda: appels.append("efface")):
+        with patch("donjon.pause", side_effect=lambda joueur: appels.append("pause")):
+            explorer(creer_joueur(), donjon_sans_danger(2))
+    assert appels == ["pause", "efface", "pause"]
+
+
+def test_ecran_pas_efface_apres_la_mort():
+    """Le message de défaite reste affiché : aucune salle suivante, aucun effacement."""
+    joueur = creer_joueur(pv=5, attaque=1)
+    donjon = donjon_sans_danger(3)
+    donjon[0].ennemi = Ennemi("Ogre", 100, 50, 0)
+    with hasard(), saisies("1"), patch("donjon.effacer_ecran") as effacer:
+        explorer(joueur, donjon)
+    assert not effacer.called
+
+
+def test_effacer_ecran_dans_un_vrai_terminal():
+    """Dans un vrai terminal, la commande d'effacement est lancée."""
+    with patch("sys.stdout") as sortie, patch("os.system") as commande:
+        sortie.isatty.return_value = True
+        effacer_ecran()
+    assert commande.call_count == 1
+
+
+def test_effacer_ecran_sans_terminal():
+    """Hors terminal (tests, fichier), aucune commande n'est lancée."""
+    with patch("sys.stdout") as sortie, patch("os.system") as commande:
+        sortie.isatty.return_value = False
+        effacer_ecran()
+    assert not commande.called
 
 
 def test_explorer_jusqu_au_bout():
