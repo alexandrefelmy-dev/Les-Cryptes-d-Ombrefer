@@ -2,7 +2,7 @@
 
 import json
 
-from personnage import Joueur
+from ombrefer.personnage import Joueur
 
 FICHIER_SAUVEGARDE = "sauvegarde.json"
 

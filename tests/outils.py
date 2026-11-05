@@ -5,9 +5,9 @@ from unittest.mock import patch
 
 import pytest
 
-from donjon import DIFFICULTES, Difficulte, generer_donjon
-from objet import Potion
-from personnage import Joueur
+from ombrefer.donjon import DIFFICULTES, Difficulte, generer_donjon
+from ombrefer.objet import Potion
+from ombrefer.personnage import Joueur
 
 # Difficulté neutre : les modèles sont utilisés sans aucun changement.
 NEUTRE = Difficulte("Test", 30, 8, 2, 1, 1)

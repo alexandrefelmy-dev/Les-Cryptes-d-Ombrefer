@@ -2,9 +2,9 @@
 
 from outils import creer_joueur, hasard, joueur_avec_potion, saisies
 
-from combat import action_defendre, action_fuir, choix_combat, combat, utiliser_un_objet
-from objet import Potion
-from personnage import Ennemi
+from ombrefer.combat import action_defendre, action_fuir, choix_combat, combat, utiliser_un_objet
+from ombrefer.objet import Potion
+from ombrefer.personnage import Ennemi
 
 
 # --- Objets ---

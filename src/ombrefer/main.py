@@ -1,10 +1,10 @@
-"""Point d'entrée du jeu : menu principal et lancement d'une partie."""
+"""Menu principal et lancement d'une partie."""
 
 import random
 
-from donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
-from personnage import Joueur
-from sauvegarde import charger, sauvegarder
+from ombrefer.donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
+from ombrefer.personnage import Joueur
+from ombrefer.sauvegarde import charger, sauvegarder
 
 NB_SALLES_MIN = 6
 NB_SALLES_MAX = 9
@@ -108,7 +108,3 @@ def main():
             case "3":
                 print("À bientôt, aventurier !")
                 break
-
-
-if __name__ == "__main__":
-    main()

@@ -6,8 +6,8 @@ import pytest
 
 from outils import creer_joueur
 
-from objet import Arme, Potion
-from sauvegarde import charger, sauvegarder
+from ombrefer.objet import Arme, Potion
+from ombrefer.sauvegarde import charger, sauvegarder
 
 
 @pytest.mark.usefixtures("fichier_sauvegarde")

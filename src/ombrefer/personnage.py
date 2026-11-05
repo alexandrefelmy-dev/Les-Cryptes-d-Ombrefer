@@ -2,7 +2,7 @@
 
 import random
 
-from objet import objet_depuis_dict
+from ombrefer.objet import objet_depuis_dict
 
 
 class Personnage:

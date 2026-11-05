@@ -2,7 +2,7 @@
 
 from outils import creer_joueur
 
-from objet import Arme, Objet, objet_depuis_dict, Potion
+from ombrefer.objet import Arme, Objet, objet_depuis_dict, Potion
 
 
 def test_potion_soigne_le_joueur():

@@ -2,8 +2,8 @@
 
 from outils import creer_joueur, hasard, joueur_avec_potion
 
-from objet import Potion
-from personnage import Personnage
+from ombrefer.objet import Potion
+from ombrefer.personnage import Personnage
 
 
 # --- Personnage ---

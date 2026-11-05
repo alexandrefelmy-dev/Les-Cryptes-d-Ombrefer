@@ -5,9 +5,9 @@ import random
 import sys
 from dataclasses import dataclass, replace
 
-from objet import Potion, Arme
-from combat import combat, utiliser_un_objet
-from personnage import Ennemi
+from ombrefer.objet import Potion, Arme
+from ombrefer.combat import combat, utiliser_un_objet
+from ombrefer.personnage import Ennemi
 
 
 MODELES_ENNEMIS = [

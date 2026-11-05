@@ -2,7 +2,7 @@
 
 import random
 
-from objet import afficher_inventaire
+from ombrefer.objet import afficher_inventaire
 
 DUREE_DEFENSE = 3
 
