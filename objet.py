@@ -32,7 +32,10 @@ class Potion(Objet):
 
     def utiliser(self, joueur):
         recupere = joueur.soigner(self.soin)
-        return f"{joueur.nom} boit {self.nom} et récupère {recupere} PV."
+        return (
+            f"{joueur.nom} boit {self.nom} et récupère {recupere} PV."
+            f" (PV : {joueur.pv}/{joueur.pv_max})"
+        )
 
     def peut_etre_utilise(self, joueur):
         return joueur.pv < joueur.pv_max

@@ -166,7 +166,7 @@ def creer_salle_boss(donjon, difficulte):
 def pause(joueur):
     """Laisse le joueur utiliser des objets jusqu'à ce qu'il passe à la salle suivante."""
     while True:
-        print("1. Utiliser un objet\n2. Passer à la salle suivante")
+        print("\n1. Utiliser un objet\n2. Passer à la salle suivante")
         choix_pause = input("Ton choix : ")
         match choix_pause:
             case "1":
@@ -199,27 +199,28 @@ def affronter_ennemi(joueur, ennemi, boss=False):
     print(f"Un {ennemi.nom} surgit ! {ennemi}")
     resultat = combat(joueur, ennemi, boss)
     if resultat == "fuite":
-        print(f"{joueur.nom} s'enfuit vers la salle suivante !")
+        print(f"\n{joueur.nom} s'enfuit vers la salle suivante !")
         pause(joueur)
     elif resultat != "defaite":
         joueur.gagner_or(ennemi.recompense)
         print(
-            f"{ennemi.nom} est vaincu ! {joueur.nom}"
+            f"\n{ennemi.nom} est vaincu ! {joueur.nom}"
             f" ramasse {ennemi.recompense} pièces d'or."
         )
         montee_de_niveau = joueur.gagner_xp(ennemi.recompense)
         if montee_de_niveau:
             print(
-                f"{joueur.nom} passe au niveau {joueur.niveau} !"
+                f"\n{joueur.nom} passe au niveau {joueur.niveau} !"
                 f" PV max {joueur.pv_max}, attaque {joueur.attaque}."
             )
+            print(joueur)
     return resultat
 
 
 def ramasser_butin(joueur, butin):
     """Ajoute le butin à l'inventaire du joueur."""
     joueur.ramasser_objet(butin)
-    print(f"{joueur.nom} trouve : {butin}")
+    print(f"\n{joueur.nom} trouve : {butin}")
 
 
 def traverser_salle(joueur, salle):

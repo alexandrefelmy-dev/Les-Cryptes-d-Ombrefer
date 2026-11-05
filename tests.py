@@ -251,6 +251,22 @@ def test_potion_soigne_le_joueur():
     assert "récupère 5 PV" in phrase
 
 
+def test_potion_montre_les_pv_apres_soin():
+    """Le message de la potion affiche les PV après le soin."""
+    joueur = creer_joueur()
+    joueur.pv = 10
+    phrase = Potion("Potion", 5).utiliser(joueur)
+    assert "(PV : 15/30)" in phrase
+
+
+def test_potion_en_combat_montre_les_pv():
+    """En combat, les PV après la potion sont affichés avant l'attaque de l'ennemi."""
+    joueur = joueur_avec_potion()
+    with hasard(), saisies("1"):
+        sortie = sortie_de(utiliser_un_objet, joueur)
+    assert "(PV : 15/30)" in sortie
+
+
 def test_potion_refusee_si_pv_pleins():
     """Une potion ne peut pas être bue avec tous ses PV."""
     joueur = creer_joueur()
@@ -973,6 +989,44 @@ def test_defaite_ne_rapporte_pas_d_xp():
     with hasard(), saisies("1"):
         affronter_ennemi(joueur, Ennemi("Ogre", 100, 50, 7))
     assert joueur.xp == 0
+
+
+def test_statut_affiche_apres_une_montee_de_niveau():
+    """Après la montée de niveau, le statut complet du héros est affiché."""
+    joueur = creer_joueur()
+    with hasard(), saisies("1"):
+        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 20))
+    assert "Aldric (PV : 35/35) | Niveau 2 | Or : 20" in sortie
+
+
+def test_statut_pas_affiche_sans_montee_de_niveau():
+    """Sans montée de niveau, le statut n'est pas répété après le combat."""
+    joueur = creer_joueur()
+    with hasard(), saisies("1"):
+        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 3))
+    assert "Niveau 1 | Or : 3" not in sortie
+
+
+def test_fin_de_salle_aeree():
+    """Victoire, niveau, butin et menu sont séparés par une ligne vide."""
+    joueur = creer_joueur()
+    salle = creer_salle(1, NEUTRE)
+    salle.ennemi = Ennemi("Rat", 8, 4, 20)
+    salle.butin = Potion("Potion", 5)
+    salle.piege = False
+    with hasard(), saisies("1", "2"):
+        sortie = sortie_de(traverser_salle, joueur, salle)
+    for texte in ("Rat est vaincu", "Aldric passe au niveau", "Aldric trouve", "1. Utiliser"):
+        assert f"\n\n{texte}" in sortie
+
+
+def test_fuite_aeree():
+    """La fuite et le menu de pause sont séparés du combat par une ligne vide."""
+    joueur = creer_joueur()
+    with hasard(0.3), saisies("3", "2"):
+        sortie = sortie_de(affronter_ennemi, joueur, Ennemi("Rat", 8, 4, 3))
+    assert "\n\nAldric s'enfuit" in sortie
+    assert "\n\n1. Utiliser" in sortie
 
 
 def test_tuer_un_ennemi_peut_faire_monter_de_niveau():
