@@ -204,7 +204,7 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         return montee_de_niveau
 
     def to_dict(self):
-        """Renvoie le joueur sous forme de dictionnaire (pour la sauvegarde JSON)."""
+        """Renvoie le joueur sous forme de dictionnaire (pour la sauvegarde)."""
         return {
             "nom": self.nom,
             "pv": self.pv,
@@ -227,15 +227,15 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         joueur = cls(donnees["nom"], donnees["pv_max"], donnees["attaque"])
         joueur.pv = donnees["pv"]
         joueur.niveau = donnees["niveau"]
-        joueur.niveau_donjon = donnees.get("niveau_donjon", 1)
-        joueur.difficulte = donnees.get("difficulte")
+        joueur.niveau_donjon = donnees["niveau_donjon"]
+        joueur.difficulte = donnees["difficulte"]
         joueur.piece = donnees["piece"]
         joueur.defense = donnees["defense"]
-        arme, armure = donnees.get("arme"), donnees.get("armure")
+        arme, armure = donnees["arme"], donnees["armure"]
         joueur.arme = objet_depuis_dict(arme) if arme else None
         joueur.armure = objet_depuis_dict(armure) if armure else None
         joueur.inventaire = [objet_depuis_dict(objet_dict) for objet_dict in donnees["inventaire"]]
-        joueur.xp = donnees.get("xp", 0)
+        joueur.xp = donnees["xp"]
         return joueur
 
     def __str__(self):

@@ -1,6 +1,8 @@
-"""Tests de sauvegarde.py : écriture et chargement du héros en JSON."""
+"""Tests de sauvegarde.py : écriture, signature et chargement du héros."""
 
+import base64
 import json
+import zlib
 
 import pytest
 
@@ -8,7 +10,7 @@ from outils import creer_joueur
 
 from ombrefer.effet import POISON
 from ombrefer.objet import Arme, Armure, Potion, Remede
-from ombrefer.sauvegarde import charger, sauvegarder
+from ombrefer.sauvegarde import charger, decoder, encoder, sauvegarder, signer
 
 
 @pytest.mark.usefixtures("fichier_sauvegarde")
@@ -50,7 +52,7 @@ def test_niveau_de_donjon_dans_le_fichier(fichier_sauvegarde):
     joueur = creer_joueur()
     joueur.niveau_donjon = 4
     sauvegarder(joueur)
-    assert json.loads(fichier_sauvegarde.read_text(encoding="utf-8"))["niveau_donjon"] == 4
+    assert decoder(fichier_sauvegarde.read_bytes())["niveau_donjon"] == 4
     assert charger().niveau_donjon == 4
 
 
@@ -59,35 +61,8 @@ def test_difficulte_dans_le_fichier(fichier_sauvegarde):
     joueur = creer_joueur()
     joueur.difficulte = "Difficile"
     sauvegarder(joueur)
-    assert json.loads(fichier_sauvegarde.read_text(encoding="utf-8"))["difficulte"] == "Difficile"
+    assert decoder(fichier_sauvegarde.read_bytes())["difficulte"] == "Difficile"
     assert charger().difficulte == "Difficile"
-
-
-def test_charger_ancienne_sauvegarde_sans_difficulte(fichier_sauvegarde):
-    """Une sauvegarde sans mode se charge sans erreur."""
-    donnees = creer_joueur().to_dict()
-    del donnees["difficulte"]
-    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
-    assert charger().difficulte is None
-
-
-def test_charger_ancienne_sauvegarde_sans_niveau_de_donjon(fichier_sauvegarde):
-    """Une sauvegarde d'avant les niveaux repart du niveau 1."""
-    donnees = creer_joueur().to_dict()
-    del donnees["niveau_donjon"]
-    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
-    assert charger().niveau_donjon == 1
-
-
-def test_charger_ancienne_sauvegarde_sans_equipement(fichier_sauvegarde):
-    """Une sauvegarde d'avant l'équipement se charge sans arme ni armure portée."""
-    donnees = creer_joueur(defense=2).to_dict()
-    del donnees["arme"]
-    del donnees["armure"]
-    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
-    charge = charger()
-    assert charge.arme is None and charge.armure is None
-    assert charge.defense == 2
 
 
 def test_bonus_de_defense_jamais_sauvegarde():
@@ -111,9 +86,77 @@ def test_charger_fichier_corrompu(fichier_sauvegarde):
     assert charger() is None
 
 
-def test_charger_ancienne_sauvegarde_sans_xp(fichier_sauvegarde):
-    """Une sauvegarde d'avant l'XP se charge avec 0 XP."""
-    donnees = creer_joueur().to_dict()
-    del donnees["xp"]
-    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
-    assert charger().xp == 0
+# --- Protection du fichier ---
+
+
+def fichier_de_test(fichier_sauvegarde):
+    """Sauvegarde un héros riche de 40 pièces et renvoie les octets du fichier."""
+    joueur = creer_joueur()
+    joueur.gagner_or(40)
+    sauvegarder(joueur)
+    return fichier_sauvegarde.read_bytes()
+
+
+def test_fichier_illisible(fichier_sauvegarde):
+    """Ni le nom du héros ni ses stats n'apparaissent en clair."""
+    octets = fichier_de_test(fichier_sauvegarde)
+    assert b"Aldric" not in octets
+    assert b"piece" not in octets
+
+
+def test_encoder_puis_decoder_garde_les_accents():
+    """Les données reviennent à l'identique, accents compris."""
+    donnees = {"nom": "Élodie", "or": 12}
+    assert decoder(encoder(donnees)) == donnees
+
+
+def test_un_octet_modifie_est_refuse(fichier_sauvegarde, capsys):
+    """Changer un seul caractère du contenu suffit à faire refuser le fichier."""
+    octets = bytearray(fichier_de_test(fichier_sauvegarde))
+    octets[-5] = ord("A") if octets[-5] != ord("A") else ord("B")
+    fichier_sauvegarde.write_bytes(octets)
+    assert charger() is None
+    assert "modifié" in capsys.readouterr().out
+
+
+def test_signature_modifiee_est_refusee(fichier_sauvegarde):
+    """Une signature changée fait refuser le fichier."""
+    octets = fichier_de_test(fichier_sauvegarde)
+    fichier_sauvegarde.write_bytes(b"0" * 64 + octets[64:])
+    assert charger() is None
+
+
+def test_triche_sans_la_cle_est_refusee(fichier_sauvegarde):
+    """Décoder le fichier, changer l'or et réencoder ne trompe pas la signature."""
+    signature, _, contenu = fichier_de_test(fichier_sauvegarde).partition(b":")
+    donnees = json.loads(zlib.decompress(base64.b64decode(contenu)))
+    donnees["piece"] = 99999
+    triche = base64.b64encode(zlib.compress(json.dumps(donnees).encode("utf-8")))
+    fichier_sauvegarde.write_bytes(signature + b":" + triche)
+    assert charger() is None
+
+
+def test_json_en_clair_est_refuse(fichier_sauvegarde):
+    """Un héros écrit à la main en JSON n'est pas accepté."""
+    texte = json.dumps(creer_joueur().to_dict())
+    fichier_sauvegarde.write_text(texte, encoding="utf-8")
+    assert charger() is None
+
+
+def test_fichier_binaire_quelconque_est_refuse(fichier_sauvegarde):
+    """Des octets au hasard ne font pas planter le chargement."""
+    fichier_sauvegarde.write_bytes(bytes(range(256)))
+    assert charger() is None
+
+
+def test_fichier_refuse_n_est_pas_supprime(fichier_sauvegarde):
+    """Un fichier refusé reste sur le disque, intact."""
+    fichier_sauvegarde.write_bytes(b"fichier abime")
+    avant = fichier_sauvegarde.read_bytes()
+    charger()
+    assert fichier_sauvegarde.read_bytes() == avant
+
+
+def test_la_signature_depend_du_contenu():
+    """Deux contenus différents n'ont pas la même signature."""
+    assert signer(b"a") != signer(b"b")

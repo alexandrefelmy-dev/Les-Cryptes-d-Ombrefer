@@ -19,7 +19,7 @@ class Objet:
         return "..."
 
     def to_dict(self):
-        """Renvoie les données de l'objet sous forme de dictionnaire, prêt pour le JSON."""
+        """Renvoie les données de l'objet sous forme de dictionnaire, prêt pour la sauvegarde."""
         return {"nom": self.nom}
 
     def peut_etre_utilise(self, joueur):  # pylint: disable=unused-argument
@@ -183,9 +183,9 @@ def objet_depuis_dict(donnees):
         case "potion":
             return Potion(donnees["nom"], donnees["soin"])
         case "arme":
-            return Arme(donnees["nom"], donnees["bonus"], donnees.get("effet"))
+            return Arme(donnees["nom"], donnees["bonus"], donnees["effet"])
         case "armure":
-            return Armure(donnees["nom"], donnees["bonus"], donnees.get("protection"))
+            return Armure(donnees["nom"], donnees["bonus"], donnees["protection"])
         case "remede":
             return Remede(donnees["nom"], donnees["effets"])
         case _:

@@ -330,8 +330,3 @@ def test_remede_inutile_refuse_et_garde(capsys):
 def test_objets_a_effet_depuis_dict(objet):
     """Un objet à effet garde tout ce qu'il sait faire une fois rechargé."""
     assert objet_depuis_dict(objet.to_dict()).to_dict() == objet.to_dict()
-
-
-def test_ancienne_arme_sans_effet_depuis_dict():
-    """Une arme sauvegardée avant les effets se recharge sans effet."""
-    assert objet_depuis_dict({"type": "arme", "nom": "Epée", "bonus": 3}).effet is None

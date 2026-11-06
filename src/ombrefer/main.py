@@ -31,17 +31,8 @@ def creer_heros(nom, difficulte):
 
 
 def difficulte_du_heros(joueur):
-    """Renvoie le mode du héros, ou le demande une fois s'il vient d'une ancienne sauvegarde.
-
-    Renvoie None si le joueur revient en arrière au lieu de choisir.
-    """
-    for difficulte in DIFFICULTES.values():
-        if difficulte.nom == joueur.difficulte:
-            return difficulte
-    difficulte = choisir_difficulte()
-    if difficulte is not None:
-        joueur.difficulte = difficulte.nom
-    return difficulte
+    """Renvoie les réglages du mode choisi à la création du héros."""
+    return next(mode for mode in DIFFICULTES.values() if mode.nom == joueur.difficulte)
 
 
 def choix_menu_principal():
@@ -121,10 +112,8 @@ def partie_chargee():
         print("Aucune sauvegarde trouvée.")
         return
     print(f"{aldric.nom} est de retour au niveau {aldric.niveau_donjon} ! {aldric}")
-    difficulte = difficulte_du_heros(aldric)
-    if difficulte is not None:
-        print(f"Mode : {difficulte.nom}")
-        jeu(aldric, difficulte)
+    print(f"Mode : {aldric.difficulte}")
+    jeu(aldric, difficulte_du_heros(aldric))
 
 
 def main():

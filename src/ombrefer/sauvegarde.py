@@ -1,26 +1,55 @@
-"""Sauvegarde et chargement du héros au format JSON."""
+"""Sauvegarde et chargement du héros dans un fichier compressé et signé.
 
+Le fichier contient "signature:contenu". Le contenu est le JSON du héros, compressé puis encodé
+en base64 pour ne pas être lisible. La signature HMAC permet de détecter toute modification.
+La clé étant dans le code, cela décourage la triche mais ne la rend pas impossible.
+"""
+
+import base64
+import hashlib
+import hmac
 import json
+import zlib
 
 from ombrefer.personnage import Joueur
 
-FICHIER_SAUVEGARDE = "sauvegarde.json"
+FICHIER_SAUVEGARDE = "sauvegarde.sav"
+CLE_SIGNATURE = b"Sous Valbrume, les cryptes d'Ombrefer gardent leurs secrets."
+
+
+def signer(contenu):
+    """Renvoie la signature du contenu, en octets."""
+    return hmac.new(CLE_SIGNATURE, contenu, hashlib.sha256).hexdigest().encode("ascii")
+
+
+def encoder(donnees):
+    """Transforme un dictionnaire en octets illisibles et signés, prêts pour le fichier."""
+    texte = json.dumps(donnees, ensure_ascii=False).encode("utf-8")
+    contenu = base64.b64encode(zlib.compress(texte))
+    return signer(contenu) + b":" + contenu
+
+
+def decoder(octets):
+    """Retrouve le dictionnaire. Lève ValueError si le fichier a été modifié."""
+    signature, _, contenu = octets.partition(b":")
+    if not hmac.compare_digest(signature, signer(contenu)):
+        raise ValueError("signature invalide")
+    return json.loads(zlib.decompress(base64.b64decode(contenu)))
 
 
 def sauvegarder(joueur):
-    """Sauvegarde le joueur dans un fichier JSON."""
-    with open(FICHIER_SAUVEGARDE, "w", encoding="utf-8") as f:
-        json.dump(joueur.to_dict(), f, indent=4, ensure_ascii=False)
+    """Sauvegarde le joueur dans le fichier de sauvegarde."""
+    with open(FICHIER_SAUVEGARDE, "wb") as f:
+        f.write(encoder(joueur.to_dict()))
 
 
 def charger():
-    """Charge le joueur depuis un fichier JSON."""
+    """Charge le joueur, ou renvoie None si le fichier manque ou a été modifié."""
     try:
-        with open(FICHIER_SAUVEGARDE, "r", encoding="utf-8") as f:
-            donnees = json.load(f)
-        return Joueur.from_dict(donnees)
+        with open(FICHIER_SAUVEGARDE, "rb") as f:
+            return Joueur.from_dict(decoder(f.read()))
     except FileNotFoundError:
         return None
-    except json.JSONDecodeError:
-        print("Erreur : le fichier de sauvegarde est corrompu.")
+    except ValueError:
+        print("Erreur : le fichier de sauvegarde est corrompu ou a été modifié.")
         return None

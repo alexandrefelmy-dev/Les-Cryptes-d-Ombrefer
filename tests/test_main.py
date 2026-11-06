@@ -16,7 +16,6 @@ from ombrefer.main import (
     creer_heros,
     demander_nom,
     demander_oui_non,
-    difficulte_du_heros,
     jeu,
     main,
     nouvelle_partie,
@@ -214,33 +213,6 @@ def test_le_mode_survit_a_plusieurs_sauvegardes():
     charge = charger()
     assert charge.difficulte == "Difficile"
     assert charge.niveau_donjon == 3
-
-
-def test_ancienne_sauvegarde_choisit_son_mode_une_fois():
-    """Sans mode dans la sauvegarde, il est demandé puis retenu pour la suite."""
-    joueur = creer_joueur()
-    with patch("ombrefer.main.charger", return_value=joueur), saisies("2"):
-        with patch("ombrefer.main.jeu") as jeu_simule:
-            partie_chargee()
-    assert jeu_simule.call_args.args == (joueur, DIFFICULTES["2"])
-    assert joueur.difficulte == "Intermédiaire"
-    assert difficulte_du_heros(joueur) is DIFFICULTES["2"]
-
-
-def test_mode_inconnu_demande_un_nouveau_choix():
-    """Un nom de mode inconnu dans la sauvegarde ne bloque pas le héros."""
-    joueur = creer_joueur()
-    joueur.difficulte = "Cauchemar"
-    with saisies("1"):
-        assert difficulte_du_heros(joueur) is DIFFICULTES["1"]
-
-
-def test_retour_apres_chargement():
-    """Revenir de la difficulté après un chargement ne lance pas de partie."""
-    with patch("ombrefer.main.charger", return_value=creer_joueur()), saisies("0"):
-        with patch("ombrefer.main.jeu") as jeu_simule:
-            partie_chargee()
-    assert not jeu_simule.called
 
 
 def test_chargement_sans_sauvegarde():

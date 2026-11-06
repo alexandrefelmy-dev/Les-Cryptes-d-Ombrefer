@@ -54,7 +54,9 @@ Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros s
 - les ennemis dangereux tombent plus souvent et de nouveaux ennemis apparaissent
 - les armes et armures fortes sont moins rares, jusqu'à une limite
 
-Le fichier de sauvegarde contient `niveau_donjon`, le niveau où le héros repartira, et `difficulte`, son mode. Le mode choisi à la création du héros ne peut plus changer : il est repris automatiquement au chargement.
+Le fichier `sauvegarde.sav` contient `niveau_donjon`, le niveau où le héros repartira, et `difficulte`, son mode. Le mode choisi à la création du héros ne peut plus changer : il est repris automatiquement au chargement.
+
+Ce fichier est compressé et signé : il n'est pas lisible, et le jeu refuse de le charger s'il a été modifié.
 
 ### Ennemis
 
@@ -121,7 +123,7 @@ Le code du jeu est dans `src/ombrefer/` :
 | `combat.py` | Déroulement du combat |
 | `donjon.py` | Modes de difficulté, génération des salles et exploration |
 | `boutique.py` | Affichage de la boutique et achats |
-| `sauvegarde.py` | Sauvegarde et chargement du héros en JSON |
+| `sauvegarde.py` | Sauvegarde et chargement du héros dans un fichier compressé et signé |
 
 Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
 
@@ -131,7 +133,7 @@ Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
 - Module `random` : `randint`, `random`, `choice`, `choices`
 - Boucle de jeu, `match` / `case`, validation des saisies
 - Listes d'objets : `append`, `pop`, `enumerate`, compréhensions de liste
-- Classes de données avec `dataclass`, sauvegarde en JSON
+- Classes de données avec `dataclass`, sauvegarde en JSON compressée et signée (`zlib`, `base64`, `hmac`)
 - Organisation d'un projet : package dans `src/`, `pyproject.toml`
 - Tests avec `pytest`, linters et intégration continue avec GitHub Actions
 
