@@ -20,6 +20,16 @@ from ombrefer.objet import (
 )
 from ombrefer.combat import combat, debut_de_tour, utiliser_un_objet
 from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
+from ombrefer.evenement import (
+    AutelMaudit,
+    CoffrePiege,
+    Evenement,
+    Fontaine,
+    Forge,
+    Prisonnier,
+    renfort_allie,
+    vivre_evenement,
+)
 from ombrefer.personnage import Ennemi
 
 
@@ -118,8 +128,10 @@ CHANCE_EFFET_ENNEMI = 0.25
 CHANCE_EFFET_BOSS = 0.4
 
 
-# Chance qu'un marchand attende à la sortie d'une salle (jamais après le boss).
+# Chances qu'un marchand ou un autre événement attende à la sortie d'une salle.
+# Un seul tirage pour les deux, donc jamais les deux à la fois, et rien après le boss.
 CHANCE_BOUTIQUE = 0.3
+CHANCE_EVENEMENT = 0.08
 
 # Répartition du butin quand ce n'est pas une potion. Le reste (40 %) donne une arme.
 PART_RIEN = 0.3
@@ -173,7 +185,7 @@ DIFFICULTES = {
 
 @dataclass
 class Salle:
-    """Salle du donjon : un ennemi, un butin, un piège et une boutique éventuels."""
+    """Salle du donjon : un ennemi, un butin, un piège, une boutique ou un événement éventuels."""
 
     numero: int
     ennemi: Ennemi | None
@@ -181,6 +193,7 @@ class Salle:
     piege: bool
     boss: bool = False
     boutique: list | None = None  # objets en vente à la sortie de la salle
+    evenement: Evenement | None = None  # événement proposé à la sortie de la salle
 
 
 def ajuster(valeur, multiplicateur):
@@ -292,14 +305,32 @@ def creer_boutique(difficulte):
     ]
 
 
+def creer_evenement(difficulte):
+    """Tire un événement, tous aussi fréquents. Le coffre cache une arme ou une armure."""
+    butin = random.choice([creer_arme, creer_armure])(difficulte)
+    return random.choice([Fontaine(), AutelMaudit(), CoffrePiege(butin), Prisonnier(), Forge()])
+
+
+def tirer_sortie(difficulte):
+    """Renvoie (boutique, événement) à la sortie d'une salle : au plus l'un des deux."""
+    tirage = random.random()
+    if tirage < CHANCE_BOUTIQUE:
+        return creer_boutique(difficulte), None
+    if tirage < CHANCE_BOUTIQUE + CHANCE_EVENEMENT:
+        return None, creer_evenement(difficulte)
+    return None, None
+
+
 def creer_salle(numero, difficulte):
-    """Crée une salle avec 75 % de chances d'ennemi, un piège et peut-être une boutique."""
+    """Crée une salle avec 75 % de chances d'ennemi, un piège et ce qui attend à sa sortie."""
+    boutique, evenement = tirer_sortie(difficulte)
     return Salle(
         numero,
         creer_ennemi(difficulte) if random.random() < 0.75 else None,
         creer_butin(difficulte),
         random.random() < difficulte.chance_piege,
-        boutique=creer_boutique(difficulte) if random.random() < CHANCE_BOUTIQUE else None,
+        boutique=boutique,
+        evenement=evenement,
     )
 
 
@@ -331,14 +362,21 @@ def creer_salle_boss(donjon, difficulte):
     )
 
 
-def pause(joueur, boutique=None):
-    """Laisse le joueur utiliser des objets et acheter s'il y a une boutique, puis repartir."""
+def pause(joueur, boutique=None, evenement=None):
+    """Laisse le joueur utiliser des objets, aller à la boutique ou à l'événement, puis repartir.
+
+    L'événement reste proposé tant que le joueur n'a rien choisi : il peut d'abord se soigner.
+    """
     if boutique is not None:
         print("\nUn marchand a installé son étal ici.")
+    if evenement is not None:
+        print(f"\n{evenement.annonce}")
     while True:
         print("\n1. Utiliser un objet\n2. Passer à la salle suivante")
         if boutique is not None:
             print("3. Aller à la boutique")
+        if evenement is not None:
+            print(f"3. {evenement.action}")
         choix_pause = input("Ton choix : ")
         match choix_pause:
             case "1":
@@ -347,6 +385,9 @@ def pause(joueur, boutique=None):
                 break
             case "3" if boutique is not None:
                 visiter_boutique(joueur, boutique)
+            case "3" if evenement is not None:
+                if vivre_evenement(joueur, evenement):
+                    evenement = None
             case _:
                 print("Choix invalide.")
 
@@ -371,6 +412,8 @@ def declencher_piege(joueur):
 def affronter_ennemi(joueur, ennemi, boss=False):
     """Lance le combat contre l'ennemi et renvoie son résultat ("victoire", "fuite", "defaite")."""
     print(f"Un {ennemi.nom} surgit ! {ennemi}")
+    if boss:
+        renfort_allie(joueur, ennemi)
     resultat = combat(joueur, ennemi, boss)
     if resultat == "fuite":
         print(f"\n{joueur.nom} s'enfuit vers la salle suivante !")
@@ -408,13 +451,13 @@ def traverser_salle(joueur, salle):
         if resultat == "defaite":
             return False
         if resultat == "fuite":
-            pause(joueur, salle.boutique)
+            pause(joueur, salle.boutique, salle.evenement)
             return True
     else:
         print(f"La salle est vide... {joueur.nom} reprend son souffle.")
     if salle.butin is not None:
         ramasser_butin(joueur, salle.butin)
-    pause(joueur, salle.boutique)
+    pause(joueur, salle.boutique, salle.evenement)
     return True
 
 

@@ -22,6 +22,14 @@ def annoncer_immobilisation(personnage):
     print(f"{IMMOBILISATION} : {personnage.nom} passe son tour.")
 
 
+def appliquer_effet(cible, effet):
+    """Inflige l'effet à la cible et annonce si elle le subit ou y résiste."""
+    if cible.recevoir_effet(effet):
+        print(f"{cible.nom} subit : {effet} !")
+    else:
+        print(f"{cible.nom} résiste : {effet}.")
+
+
 def tenter_effet(attaquant, cible):
     """Tente d'infliger à la cible l'effet de l'attaquant, s'il en a un."""
     inflige = attaquant.effet_inflige()
@@ -29,10 +37,7 @@ def tenter_effet(attaquant, cible):
         return
     effet, chance = inflige
     if random.random() < chance:
-        if cible.recevoir_effet(effet):
-            print(f"{cible.nom} subit : {effet} !")
-        else:
-            print(f"{cible.nom} résiste : {effet}.")
+        appliquer_effet(cible, effet)
 
 
 def saigner(attaquant):

@@ -45,6 +45,7 @@ python -m pytest
 - Les armes ont une famille : selon la classe, elles donnent un gros bonus, un malus ou rien de spécial
 - Une seule arme et une seule armure portées à la fois : l'ancienne retourne dans l'inventaire
 - Boutique : à la sortie d'une salle (30 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or
+- 5 événements rares à la sortie d'une salle (8 %), avec des choix risqués hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée
 - XP et montées de niveau, et option 0 pour revenir en arrière dans les menus
 - Sauvegarde du héros et de son niveau de donjon après chaque niveau terminé
 
@@ -122,6 +123,25 @@ Les chances de base font 100 au niveau 1, puis les ennemis dangereux gagnent du 
 
 Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour un boss et 30 % pour une arme à effet. La Panacée guérit tout sauf l'immobilisation. Une armure protège d'un seul effet, et se défendre bloque les nouveaux effets, sans guérir ceux déjà subis.
 
+### Événements
+
+À la sortie d'une salle, un seul tirage décide de ce qui attend le héros : un marchand (30 %), un événement (8 %) ou rien. Il n'y en a donc jamais deux à la fois, et rien après le boss. Les cinq événements sont aussi fréquents, et chacun reste proposé après une fuite, comme le marchand.
+
+Le jeu n'affiche jamais les chances, seulement des indices. Le héros peut revenir au menu pour se soigner avant de décider, ou passer à la salle suivante sans rien tenter. Une perte de PV d'événement ne tue jamais : les PV s'arrêtent à 1, et l'armure adaptée bloque le poison. Attention au poison reçu à 1 PV, qui peut achever le héros à l'entrée de la salle suivante.
+
+| Événement | Choix | Ce qui peut arriver |
+| --- | --- | --- |
+| **Fontaine** | Boire | 55 % : +40 % des PV max et guérit tous les effets. 30 % : rien. 15 % : −15 % des PV max et poison |
+| | Remplir une fiole | Une petite potion de soin (+10 PV) |
+| **Autel maudit** | Offrir son sang | −20 % des PV max, +6 % d'attaque pour toujours (au moins +1). Refusé s'il reste trop peu de PV |
+| | Sceller un pacte | Jusqu'à la fin du niveau, 60 % : +25 % d'attaque. 40 % : −15 % d'attaque |
+| **Coffre piégé** | Forcer | 60 % (Voleur 80 %) : une arme ou une armure. Sinon −25 % des PV max et poison |
+| | Crocheter | 90 % : 20 or × niveau du donjon. 10 % : −10 % des PV max et poison |
+| **Prisonnier** | Libérer | 50 % : allié qui retire 15 % de ses PV au boss du niveau. 25 % : il s'enfuit. 25 % : il vole 25 % de l'or |
+| | Prendre sa bourse | 20 or × niveau du donjon, et 30 % de risque d'affaiblissement |
+| **Forge abandonnée** | Reforger l'arme (15 or × niveau du donjon) | 60 % : +25 % de bonus (au moins +2). 25 % : rien. 15 % : −15 % de bonus |
+| | Reforger l'armure (15 or × niveau du donjon) | 70 % : +1 défense. 20 % : rien. 10 % : −1 défense |
+
 ### Modes de difficulté
 
 | | Facile | Intermédiaire | Difficile |
@@ -154,6 +174,7 @@ Le code du jeu est dans `src/ombrefer/` :
 | `combat.py` | Déroulement du combat |
 | `donjon.py` | Modes de difficulté, génération des salles et exploration |
 | `boutique.py` | Affichage de la boutique et achats |
+| `evenement.py` | Événements hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée |
 | `sauvegarde.py` | Sauvegarde et chargement du héros dans un fichier compressé et signé |
 
 Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.

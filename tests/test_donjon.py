@@ -829,7 +829,7 @@ def test_ecran_efface_apres_la_pause():
     """Le texte d'une salle reste affiché tant que le joueur n'a pas quitté la pause."""
     appels = []
 
-    def noter_pause(_joueur, _boutique):
+    def noter_pause(_joueur, _boutique, _evenement):
         appels.append("pause")
 
     with patch("ombrefer.donjon.effacer_ecran", side_effect=lambda: appels.append("efface")):

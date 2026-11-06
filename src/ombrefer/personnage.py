@@ -127,6 +127,8 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         self.xp = 0
         self.tours_defense = 0
         self.garde_utilisee = False
+        self.bonus_pacte = 0  # attaque gagnée ou perdue jusqu'à la fin du niveau de donjon
+        self.allie = False  # le prisonnier libéré attend le boss de ce niveau
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""
@@ -141,6 +143,9 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     def finir_niveau_donjon(self):
         """Passe au niveau de donjon suivant, après un repos qui remet le héros à neuf."""
         self.niveau_donjon += 1
+        self.attaque -= self.bonus_pacte
+        self.bonus_pacte = 0
+        self.allie = False
         self.pv = self.pv_max
         self.effets = {}
         self.recharge_speciale = 0
@@ -151,6 +156,23 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
             return False
         self.piece -= montant
         return True
+
+    def changer_attaque_pour_le_niveau(self, montant):
+        """Change l'attaque jusqu'à la fin du niveau de donjon."""
+        self.attaque += montant
+        self.bonus_pacte += montant
+
+    def renforcer_arme(self, montant):
+        """Change le bonus de l'arme portée (jamais sous 1) et met l'attaque à jour."""
+        avant = self.arme.bonus_pour(self.classe)
+        self.arme.bonus = max(1, self.arme.bonus + montant)
+        self.attaque += self.arme.bonus_pour(self.classe) - avant
+
+    def renforcer_armure(self, montant):
+        """Change le bonus de l'armure portée (jamais sous 1) et met la défense à jour."""
+        avant = self.armure.bonus
+        self.armure.bonus = max(1, avant + montant)
+        self.defense += self.armure.bonus - avant
 
     def equiper_arme(self, arme):
         """Porte cette arme : l'ancienne retourne dans l'inventaire."""

@@ -22,6 +22,7 @@ class ClasseHeros:
     chance_esquive = 0.1
     recharge = 4  # tours de combat à attendre entre deux attaques spéciales
     peut_se_defendre = True
+    bonus_coffre = 0  # s'ajoute à la chance de forcer un coffre piégé
     affinites = {}  # pour chaque famille d'arme non neutre, GROS_BONUS ou MALUS
 
     def affinite(self, famille):
@@ -64,6 +65,7 @@ class Voleur(ClasseHeros):
     chance_critique = 0.3
     chance_esquive = 0.15
     recharge = 4
+    bonus_coffre = 0.2
     affinites = {DAGUE: GROS_BONUS, BATON: MALUS, HACHE: MALUS}
 
     def attaque_speciale(self, joueur, ennemi):

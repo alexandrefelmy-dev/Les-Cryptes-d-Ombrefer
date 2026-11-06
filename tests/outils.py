@@ -51,10 +51,11 @@ def joueur_avec_potion():
 
 
 def donjon_sans_danger(nb_salles):
-    """Crée un donjon sans ennemi, ni piège, ni boutique."""
+    """Crée un donjon sans ennemi, ni piège, ni boutique, ni événement."""
     donjon = generer_donjon(nb_salles, NEUTRE)
     for salle in donjon:
         salle.ennemi = None
         salle.piege = False
         salle.boutique = None
+        salle.evenement = None
     return donjon
