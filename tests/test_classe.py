@@ -18,7 +18,14 @@ from ombrefer.classe import (
     Voleur,
 )
 from ombrefer.combat import action_speciale, choix_combat, combat
-from ombrefer.effet import AFFAIBLISSEMENT, DEGATS_SAIGNEMENT, RAGE, SAIGNEMENT
+from ombrefer.effet import (
+    AFFAIBLISSEMENT,
+    DEGATS_SAIGNEMENT,
+    IMMOBILISATION,
+    POISON,
+    RAGE,
+    SAIGNEMENT,
+)
 from ombrefer.objet import (
     afficher_equipement,
     afficher_inventaire,
@@ -186,6 +193,31 @@ def test_la_rage_s_arrete_avec_le_combat():
     joueur.recevoir_effet(RAGE)
     joueur.fin_de_combat()
     assert not joueur.effets
+
+
+@pytest.mark.parametrize("effet", [POISON, SAIGNEMENT, IMMOBILISATION, AFFAIBLISSEMENT])
+def test_la_rage_bloque_les_nouveaux_effets(effet):
+    """En rage, aucun nouvel effet ne touche le Berserker."""
+    joueur = heros(Berserker())
+    joueur.recevoir_effet(RAGE)
+    assert not joueur.recevoir_effet(effet)
+    assert effet not in joueur.effets
+
+
+def test_la_rage_ne_guerit_pas_les_effets_deja_subis():
+    """Comme la garde, la Rage laisse en place les effets déjà subis."""
+    joueur = heros(Berserker())
+    joueur.recevoir_effet(POISON)
+    joueur.recevoir_effet(RAGE)
+    assert POISON in joueur.effets
+
+
+def test_les_effets_touchent_de_nouveau_apres_la_rage():
+    """La protection s'arrête avec la Rage."""
+    joueur = heros(Berserker())
+    joueur.recevoir_effet(RAGE)
+    joueur.fin_de_combat()
+    assert joueur.recevoir_effet(POISON)
 
 
 # --- Dans le combat ---

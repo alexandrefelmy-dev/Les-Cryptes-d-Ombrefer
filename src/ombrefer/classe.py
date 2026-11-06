@@ -109,11 +109,11 @@ class Necromancien(ClasseHeros):
 
 
 class Berserker(ClasseHeros):
-    """Héros qui ne se défend jamais, et qui frappe plus fort en encaissant plus."""
+    """Héros qui ne se défend jamais : sa Rage le renforce et bloque les effets, mais l'expose."""
 
     nom = "Berserker"
     nom_special = "Rage"
-    description = "ne se défend jamais, sa Rage décuple ses coups mais l'expose"
+    description = "sans garde, sa Rage décuple ses coups et bloque les effets, mais l'expose"
     multiplicateur_pv = 1.15
     bonus_attaque = 2
     recharge = 5

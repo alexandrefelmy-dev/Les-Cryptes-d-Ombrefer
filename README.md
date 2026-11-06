@@ -61,7 +61,7 @@ La classe se choisit à la création du héros et ne change plus. Les PV et l'at
 | **Voleur** | −15 % | +1 | Critique 30 %, esquive 15 % | **Frappe sournoise :** critique assuré et saignement | 4 tours |
 | **Mage** | −20 % | +2 | Aucune | **Éclair :** 1,25 × l'attaque, sans hasard, et affaiblissement | 6 tours |
 | **Nécromancien** | +0 % | +0 | Aucune | **Drain de vie :** coup normal, et soin égal aux dégâts | 3 tours |
-| **Berserker** | +15 % | +2 | Ne peut pas se défendre | **Rage :** attaque ×1,5 pendant 3 attaques, 1 dégât de plus reçu | 5 tours |
+| **Berserker** | +15 % | +2 | Ne peut pas se défendre | **Rage :** attaque ×1,5 pendant 3 attaques, aucun nouvel effet, 1 dégât de plus reçu | 5 tours |
 
 La recharge ne compte que les tours de combat et continue d'un combat à l'autre : l'utiliser sur un petit ennemi peut en priver contre le boss. Le repos entre deux niveaux la remet à zéro.
 
@@ -149,7 +149,7 @@ Les chances de base font 100 au niveau 1, puis les ennemis dangereux gagnent du 
 | **Immobilisation** | Fait passer un tour, puis répit de 2 tours | Zombie, Geôlier d'os, Golem d'Ombrefer, Dragon d'os | Harnois runique |
 | **Affaiblissement** | Attaque réduite de 30 % pendant 3 tours | Ombre rampante, Acolyte noir, Roi liche, Seigneur d'Ombrefer | Potion de vigueur, Broigne de garde, Armure de l'aube |
 
-Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour un boss et 30 % pour une arme à effet. La Panacée guérit tout sauf l'immobilisation. Une armure protège d'un seul effet, et se défendre bloque les nouveaux effets, sans guérir ceux déjà subis.
+Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour un boss et 30 % pour une arme à effet. La Panacée guérit tout sauf l'immobilisation. Une armure protège d'un seul effet. Se défendre et la Rage bloquent les nouveaux effets, sans guérir ceux déjà subis.
 
 ### Événements
 
@@ -207,6 +207,12 @@ Le code du jeu est dans `src/ombrefer/` :
 | `sauvegarde.py` | Sauvegarde, chargement et effacement des héros, dans 3 emplacements compressés et signés |
 
 Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
+
+`tools/simulateur.py` mesure l'équilibre du jeu : un bot joue des parties entières avec le vrai code, sans rien sauvegarder. Le profil `prudent` se soigne, lève sa garde et fuit, le profil `brut` fonce. Une variante essaie d'autres réglages sans toucher au code :
+
+```bash
+PYTHONPATH=src python tools/simulateur.py --classes Berserker --variantes '{"recharge 4": {"classe.Berserker.recharge": 4}}'
+```
 
 ## 🧠 Notions Python travaillées
 

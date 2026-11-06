@@ -210,8 +210,10 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         return self.arme.effet, CHANCE_EFFET_ARME
 
     def peut_recevoir(self, effet):
-        """La garde et l'armure adaptée empêchent un nouvel effet de toucher le joueur."""
+        """La garde, la Rage et l'armure adaptée empêchent un nouvel effet de toucher le joueur."""
         if self.tours_defense > 0:
+            return False
+        if RAGE in self.effets and effet != RAGE:
             return False
         if self.armure is not None and self.armure.protection == effet:
             return False

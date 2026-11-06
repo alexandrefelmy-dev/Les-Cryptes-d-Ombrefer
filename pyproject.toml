@@ -20,8 +20,8 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "tools"]
 
 # Permet à pylint de trouver le jeu même si un commit ne touche qu'un seul dossier.
 [tool.pylint.main]
-init-hook = "import sys; sys.path.insert(0, 'src')"
+init-hook = "import sys; sys.path[:0] = ['src', 'tools']"
