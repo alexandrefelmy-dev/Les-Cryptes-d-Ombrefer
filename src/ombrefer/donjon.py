@@ -5,44 +5,84 @@ import random
 import sys
 from dataclasses import dataclass, replace
 
-from ombrefer.objet import Potion, Arme
-from ombrefer.combat import combat, utiliser_un_objet
+from ombrefer.boutique import visiter_boutique
+from ombrefer.objet import Armure, Potion, Arme, Remede
+from ombrefer.combat import combat, debut_de_tour, utiliser_un_objet
+from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
 from ombrefer.personnage import Ennemi
 
 
+# Chaque ennemi, du plus faible au plus dangereux : (nom, PV, attaque, récompense,
+# effet infligé, chances d'apparaître sur 100). Sans effet, un ennemi a de meilleures stats.
 MODELES_ENNEMIS = [
-    ("Rat géant", 8, 5, 3),
-    ("Gobelin", 12, 6, 6),
-    ("Squelette", 10, 8, 8),
-    ("Zombie", 22, 6, 10),
-    ("Goule", 16, 9, 15),
+    ("Rat géant", 6, 4, 3, POISON, 24),
+    ("Chauve-souris sanglante", 7, 6, 5, SAIGNEMENT, 18),
+    ("Araignée des cryptes", 9, 6, 7, POISON, 15),
+    ("Gobelin", 15, 7, 9, None, 13),
+    ("Squelette", 14, 9, 11, None, 10),
+    ("Ombre rampante", 16, 8, 14, AFFAIBLISSEMENT, 8),
+    ("Zombie", 24, 6, 15, IMMOBILISATION, 6),
+    ("Gargouille", 28, 9, 22, None, 4),
+    ("Goule", 22, 12, 28, None, 2),
 ]
 
-# Chaque boss : (nom, PV, attaque, récompense), puis son arme (nom, bonus d'attaque).
+# Chaque boss : (nom, PV, attaque, récompense, son effet), puis son arme (nom, bonus, effet).
 MODELES_BOSS = [
-    (("Golem d'Ombrefer", 80, 8, 40), ("Poing de fer", 6)),
-    (("Spectre de Valbrume", 30, 16, 60), ("Lame spectrale", 12)),
-    (("Roi liche", 50, 12, 50), ("Epée du roi liche", 10)),
-    (("Seigneur vampire", 55, 12, 80), ("Croc de sang", 9)),
+    (("Golem d'Ombrefer", 80, 8, 40, IMMOBILISATION), ("Poing de fer", 8, IMMOBILISATION)),
+    (("Spectre de Valbrume", 30, 16, 60, POISON), ("Lame spectrale", 16, POISON)),
+    (("Roi liche", 50, 12, 50, AFFAIBLISSEMENT), ("Epée du roi liche", 14, AFFAIBLISSEMENT)),
+    (("Seigneur vampire", 55, 12, 80, SAIGNEMENT), ("Croc de sang", 12, SAIGNEMENT)),
 ]
 
-# Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles).
+# Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles, effet infligé).
 MODELES_ARMES = [
-    ("Dague ébréchée", 1, 56),
-    ("Gourdin noueux", 2, 42),
-    ("Epée rouillée", 3, 32),
-    ("Hache de garde", 4, 24),
-    ("Masse d'armes", 5, 18),
-    ("Lance d'acier", 7, 12),
-    ("Sabre runique", 9, 8),
-    ("Epée de l'aube", 12, 4),
-    ("Faux des ombres", 16, 3),
-    ("Lame d'Ombrefer", 30, 1),
+    ("Dague empoisonnée", 2, 56, POISON),
+    ("Gourdin noueux", 3, 42, None),
+    ("Epée rouillée", 4, 32, None),
+    ("Hache de garde", 6, 24, SAIGNEMENT),
+    ("Masse d'armes", 8, 18, IMMOBILISATION),
+    ("Lance d'acier", 11, 12, None),
+    ("Sabre runique", 15, 8, AFFAIBLISSEMENT),
+    ("Epée de l'aube", 20, 4, None),
+    ("Faux des ombres", 28, 3, SAIGNEMENT),
+    ("Lame d'Ombrefer", 50, 1, POISON),
 ]
 
+# Chaque armure : (nom, bonus de défense, chances de tomber sur 1000 salles, effet bloqué).
+MODELES_ARMURES = [
+    ("Cuir traité", 1, 39, POISON),
+    ("Gambison matelassé", 2, 26, SAIGNEMENT),
+    ("Cotte de mailles", 3, 15, None),
+    ("Broigne de garde", 5, 9, AFFAIBLISSEMENT),
+    ("Cuirasse d'acier", 7, 5, None),
+    ("Harnois runique", 9, 3, IMMOBILISATION),
+    ("Armure de l'aube", 12, 2, AFFAIBLISSEMENT),
+    ("Armure d'Ombrefer", 16, 1, POISON),
+]
+
+# Chaque remède : (nom, effets guéris, chances relatives de tomber).
+MODELES_REMEDES = [
+    ("Antidote", (POISON,), 40),
+    ("Potion coagulante", (SAIGNEMENT,), 30),
+    ("Potion de vigueur", (AFFAIBLISSEMENT,), 25),
+    ("Panacée", (POISON, SAIGNEMENT, AFFAIBLISSEMENT), 5),
+]
+
+# Chance qu'un coup qui touche inflige l'effet de celui qui frappe.
+CHANCE_EFFET_ENNEMI = 0.25
+CHANCE_EFFET_BOSS = 0.4
+
+
+# Chance qu'un marchand attende à la sortie d'une salle (jamais après le boss).
+CHANCE_BOUTIQUE = 0.3
+
+# Répartition du butin quand ce n'est pas une potion. Le reste (40 %) donne une arme.
+PART_RIEN = 0.3
+PART_REMEDES = 0.1
+PART_ARMURES = 0.2
 
 # Renforcement des ennemis pour chaque niveau du héros au-dessus du niveau 1.
-FORCE_PAR_NIVEAU = 0.3
+FORCE_PAR_NIVEAU = 0.37
 
 
 @dataclass
@@ -52,27 +92,26 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
     nom: str
     pv_joueur: int
     attaque_joueur: int
-    defense_joueur: int
     force_ennemis: float  # multiplie les PV et l'attaque des ennemis et des boss
     recompense_boss: float  # multiplie l'or et le bonus de l'arme laissés par le boss
     gain_ennemis: float = 1  # multiplie l'or et l'XP des ennemis normaux
     chance_piege: float = 0.1
     chance_potion: float = 0.5
-    rarete_armes: float = 0  # de 0 à 1 : plus c'est haut, moins les armes fortes sont rares
+    rarete_armes: float = 0  # de 0 à 1 : plus c'est haut, moins armes et armures fortes sont rares
     nb_boss: int = len(MODELES_BOSS)  # seuls les premiers boss de MODELES_BOSS sont possibles
 
 
 DIFFICULTES = {
     "1": Difficulte(
-        "Facile", 32, 8, 2, 1.15, 1.0,
+        "Facile", 41, 8, 1.15, 1.0,
         gain_ennemis=1.0, chance_piege=0.05, chance_potion=0.55, rarete_armes=0.0, nb_boss=3,
     ),
     "2": Difficulte(
-        "Intermédiaire", 28, 8, 2, 1.25, 1.5,
+        "Intermédiaire", 33, 8, 1.25, 1.5,
         gain_ennemis=1.25, chance_piege=0.1, chance_potion=0.5, rarete_armes=0.1, nb_boss=3,
     ),
     "3": Difficulte(
-        "Difficile", 25, 7, 2, 1.35, 2.0,
+        "Difficile", 24, 7, 1.35, 2.0,
         gain_ennemis=1.5, chance_piege=0.2, chance_potion=0.4, rarete_armes=0.2, nb_boss=4,
     ),
 }
@@ -80,13 +119,14 @@ DIFFICULTES = {
 
 @dataclass
 class Salle:
-    """Salle du donjon : un ennemi, un butin et un piège éventuels."""
+    """Salle du donjon : un ennemi, un butin, un piège et une boutique éventuels."""
 
     numero: int
     ennemi: Ennemi | None
-    butin: Potion | Arme | None
+    butin: Potion | Remede | Arme | Armure | None
     piege: bool
     boss: bool = False
+    boutique: list | None = None  # objets en vente à la sortie de la salle
 
 
 def ajuster(valeur, multiplicateur):
@@ -101,21 +141,42 @@ def adapter_au_niveau(difficulte, niveau):
 
 
 def creer_ennemi(difficulte):
-    """Crée un ennemi tiré au hasard parmi MODELES_ENNEMIS, adapté à la difficulté."""
-    nom, pv, attaque, recompense = random.choice(MODELES_ENNEMIS)
+    """Crée un ennemi selon ses chances d'apparaître, adapté à la difficulté."""
+    poids = [modele[5] for modele in MODELES_ENNEMIS]
+    nom, pv, attaque, recompense, effet, _ = random.choices(MODELES_ENNEMIS, weights=poids)[0]
     force = difficulte.force_ennemis
     gain = difficulte.gain_ennemis
-    return Ennemi(nom, ajuster(pv, force), ajuster(attaque, force), ajuster(recompense, gain))
+    return Ennemi(
+        nom, ajuster(pv, force), ajuster(attaque, force), ajuster(recompense, gain),
+        effet, CHANCE_EFFET_ENNEMI,
+    )
+
+
+def tirer_modele(modeles, difficulte):
+    """Tire un modèle au hasard : plus il est fort, plus il est rare, dans tous les modes.
+
+    Élever les chances à une puissance inférieure à 1 rapproche les modèles sans changer leur ordre.
+    """
+    poids = [modele[2] ** (1 - difficulte.rarete_armes) for modele in modeles]
+    return random.choices(modeles, weights=poids)[0]
 
 
 def creer_arme(difficulte):
-    """Crée une arme tirée au hasard : plus elle est forte, plus elle est rare, dans tous les modes.
+    """Crée une arme tirée au hasard parmi MODELES_ARMES."""
+    nom, bonus, _, effet = tirer_modele(MODELES_ARMES, difficulte)
+    return Arme(nom, bonus, effet)
 
-    Élever les chances à une puissance inférieure à 1 rapproche les armes sans changer leur ordre.
-    """
-    poids = [chances ** (1 - difficulte.rarete_armes) for _, _, chances in MODELES_ARMES]
-    nom, bonus, _ = random.choices(MODELES_ARMES, weights=poids)[0]
-    return Arme(nom, bonus)
+
+def creer_armure(difficulte):
+    """Crée une armure tirée au hasard parmi MODELES_ARMURES."""
+    nom, bonus, _, protection = tirer_modele(MODELES_ARMURES, difficulte)
+    return Armure(nom, bonus, protection)
+
+
+def creer_remede(difficulte):
+    """Crée un remède tiré au hasard parmi MODELES_REMEDES."""
+    nom, effets, _ = tirer_modele(MODELES_REMEDES, difficulte)
+    return Remede(nom, effets)
 
 
 def creer_potion(tirage):
@@ -128,51 +189,78 @@ def creer_potion(tirage):
 
 
 def creer_butin(difficulte):
-    """Renvoie une potion selon la difficulté. Sinon : rien (60 %) ou une arme (40 %)."""
+    """Renvoie une potion selon la difficulté. Sinon : rien, un remède, une armure ou une arme."""
     tirage_butin = random.random()
     chance_potion = difficulte.chance_potion
     if tirage_butin < chance_potion:
         return creer_potion(tirage_butin / chance_potion)
-    if tirage_butin < chance_potion + (1 - chance_potion) * 0.6:
+    hors_potions = (tirage_butin - chance_potion) / (1 - chance_potion)
+    if hors_potions < PART_RIEN:
         return None
+    if hors_potions < PART_RIEN + PART_REMEDES:
+        return creer_remede(difficulte)
+    if hors_potions < PART_RIEN + PART_REMEDES + PART_ARMURES:
+        return creer_armure(difficulte)
     return creer_arme(difficulte)
 
 
+def creer_boutique(difficulte):
+    """Renvoie les objets d'une boutique : une potion, un remède, une arme et une armure."""
+    return [
+        creer_potion(random.random()),
+        creer_remede(difficulte),
+        creer_arme(difficulte),
+        creer_armure(difficulte),
+    ]
+
+
 def creer_salle(numero, difficulte):
-    """Crée une salle avec 75 % de chances d'ennemi et un piège selon la difficulté."""
+    """Crée une salle avec 75 % de chances d'ennemi, un piège et peut-être une boutique."""
     return Salle(
         numero,
         creer_ennemi(difficulte) if random.random() < 0.75 else None,
         creer_butin(difficulte),
         random.random() < difficulte.chance_piege,
+        boutique=creer_boutique(difficulte) if random.random() < CHANCE_BOUTIQUE else None,
     )
 
 
 def creer_salle_boss(donjon, difficulte):
     """Crée la salle finale : la difficulté choisit le boss, sa force et ses récompenses."""
     boss_possibles = MODELES_BOSS[:difficulte.nb_boss]
-    (nom, pv, attaque, recompense), (nom_arme, bonus) = random.choice(boss_possibles)
+    (nom, pv, attaque, recompense, effet), (nom_arme, bonus, effet_arme) = random.choice(
+        boss_possibles
+    )
     force = difficulte.force_ennemis
     gain = difficulte.recompense_boss
     return Salle(
         len(donjon) + 1,
-        Ennemi(nom, ajuster(pv, force), ajuster(attaque, force), ajuster(recompense, gain)),
-        Arme(nom_arme, ajuster(bonus, gain)),
+        Ennemi(
+            nom, ajuster(pv, force), ajuster(attaque, force), ajuster(recompense, gain),
+            effet, CHANCE_EFFET_BOSS,
+        ),
+        Arme(nom_arme, ajuster(bonus, gain), effet_arme),
         random.random() < difficulte.chance_piege,
         boss=True,
     )
 
 
-def pause(joueur):
-    """Laisse le joueur utiliser des objets jusqu'à ce qu'il passe à la salle suivante."""
+def pause(joueur, boutique=None):
+    """Laisse le joueur utiliser des objets et acheter s'il y a une boutique, puis repartir."""
+    if boutique is not None:
+        print("\nUn marchand a installé son étal ici.")
     while True:
         print("\n1. Utiliser un objet\n2. Passer à la salle suivante")
+        if boutique is not None:
+            print("3. Aller à la boutique")
         choix_pause = input("Ton choix : ")
         match choix_pause:
             case "1":
                 utiliser_un_objet(joueur)
             case "2":
                 break
+            case "3" if boutique is not None:
+                visiter_boutique(joueur, boutique)
             case _:
                 print("Choix invalide.")
 
@@ -200,7 +288,6 @@ def affronter_ennemi(joueur, ennemi, boss=False):
     resultat = combat(joueur, ennemi, boss)
     if resultat == "fuite":
         print(f"\n{joueur.nom} s'enfuit vers la salle suivante !")
-        pause(joueur)
     elif resultat != "defaite":
         joueur.gagner_or(ennemi.recompense)
         print(
@@ -225,6 +312,9 @@ def ramasser_butin(joueur, butin):
 
 def traverser_salle(joueur, salle):
     """Fait traverser une salle au joueur. Renvoie True s'il en sort vivant."""
+    debut_de_tour(joueur)  # entre deux salles, seul le poison continue d'agir
+    if not joueur.est_vivant():
+        return False
     if salle.piege and not declencher_piege(joueur):
         return False
     if salle.ennemi is not None:
@@ -232,12 +322,13 @@ def traverser_salle(joueur, salle):
         if resultat == "defaite":
             return False
         if resultat == "fuite":
+            pause(joueur, salle.boutique)
             return True
     else:
         print(f"La salle est vide... {joueur.nom} reprend son souffle.")
     if salle.butin is not None:
         ramasser_butin(joueur, salle.butin)
-    pause(joueur)
+    pause(joueur, salle.boutique)
     return True
 
 

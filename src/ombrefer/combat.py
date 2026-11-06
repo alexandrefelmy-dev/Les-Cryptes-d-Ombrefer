@@ -2,18 +2,66 @@
 
 import random
 
+from ombrefer.effet import DEGATS_SAIGNEMENT, IMMOBILISATION, POISON, SAIGNEMENT
 from ombrefer.objet import afficher_inventaire
 
 DUREE_DEFENSE = 3
 
 
+def debut_de_tour(personnage):
+    """Fait vieillir les effets du personnage et annonce le poison. Renvoie True s'il peut agir."""
+    avant = personnage.pv
+    peut_agir = personnage.passer_un_tour()
+    if personnage.pv < avant:
+        print(f"{personnage.nom} perd {avant - personnage.pv} PV à cause du {POISON.lower()}.")
+    return peut_agir
+
+
+def annoncer_immobilisation(personnage):
+    """Affiche que le personnage perd son tour."""
+    print(f"{IMMOBILISATION} : {personnage.nom} passe son tour.")
+
+
+def tenter_effet(attaquant, cible):
+    """Tente d'infliger à la cible l'effet de l'attaquant, s'il en a un."""
+    inflige = attaquant.effet_inflige()
+    if inflige is None or not cible.est_vivant():
+        return
+    effet, chance = inflige
+    if random.random() < chance:
+        if cible.recevoir_effet(effet):
+            print(f"{cible.nom} subit : {effet} !")
+        else:
+            print(f"{cible.nom} résiste : {effet}.")
+
+
 def tour_attaque(attaquant, cible):
-    """Fait attaquer la cible par l'attaquant et affiche les dégâts infligés."""
+    """Fait attaquer la cible : le saignement d'abord, puis le coup et son effet éventuel."""
+    if SAIGNEMENT in attaquant.effets:
+        attaquant.perdre_pv(DEGATS_SAIGNEMENT)
+        print(f"{attaquant.nom} perd {DEGATS_SAIGNEMENT} PV à cause du {SAIGNEMENT.lower()}.")
+        if not attaquant.est_vivant():
+            return
     montant_degat, critique = attaquant.attaquer(cible)
     if critique:
         print(f"{attaquant.nom} attaque {cible.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
     else:
         print(f"{attaquant.nom} attaque {cible.nom} et inflige {montant_degat} dégâts.")
+    if montant_degat > 0:
+        tenter_effet(attaquant, cible)
+
+
+def riposte(ennemi, joueur):
+    """L'ennemi joue son tour : ses effets d'abord, puis son attaque s'il le peut."""
+    if not joueur.est_vivant() or not ennemi.est_vivant():
+        return
+    peut_agir = debut_de_tour(ennemi)
+    if not ennemi.est_vivant():
+        return
+    if peut_agir:
+        tour_attaque(ennemi, joueur)
+    else:
+        annoncer_immobilisation(ennemi)
 
 
 def utiliser_un_objet(joueur):
@@ -33,7 +81,7 @@ def utiliser_un_objet(joueur):
     index = int(choix_objet) - 1
     objet = joueur.inventaire[index]
     if not objet.peut_etre_utilise(joueur):
-        print(f"{joueur.nom} a déjà tous ses PV !")
+        print(objet.refus(joueur))
         return False
     print(joueur.utiliser_objet(index))
     return True
@@ -58,7 +106,7 @@ def afficher_tour(compteur, joueur, ennemi):
     print(joueur)
     print(ennemi)
     if joueur.tours_defense > 0:
-        print(f"Défense doublée : encore {joueur.tours_defense} tour(s).")
+        print(f"Garde levée : encore {joueur.tours_defense} tour(s).")
 
 
 def action_attaquer(joueur, ennemi):
@@ -66,7 +114,7 @@ def action_attaquer(joueur, ennemi):
     tour_attaque(joueur, ennemi)
     if not ennemi.est_vivant():
         return "victoire"
-    tour_attaque(ennemi, joueur)
+    riposte(ennemi, joueur)
     return None
 
 
@@ -74,7 +122,7 @@ def action_objet(joueur, ennemi):
     """Le joueur utilise un objet, puis l'ennemi attaque. Renvoie "annule" sinon, ou None."""
     if not utiliser_un_objet(joueur):
         return "annule"
-    tour_attaque(ennemi, joueur)
+    riposte(ennemi, joueur)
     return None
 
 
@@ -84,20 +132,53 @@ def action_fuir(joueur, ennemi, boss):
     """
     if boss:
         print(f"{joueur.nom} ne peut pas fuir {ennemi.nom} !")
-        tour_attaque(ennemi, joueur)
+        riposte(ennemi, joueur)
         return None
     if random.random() < 0.5:
         return "fuite"
     print("Fuite ratée !")
-    tour_attaque(ennemi, joueur)
+    riposte(ennemi, joueur)
     return None
 
 
 def action_defendre(joueur, ennemi):
-    """Double la défense du joueur pendant 3 tours, ce tour compris, puis l'ennemi attaque."""
-    print(f"La défense est doublée pendant {DUREE_DEFENSE} tours.")
+    """Triple la défense et bloque les nouveaux effets pendant 3 tours, ce tour compris.
+
+    Sans armure ni effet à craindre, il n'y a rien à gagner : l'action est refusée et
+    renvoie "annule".
+    """
+    if joueur.defense == 0 and ennemi.effet_inflige() is None:
+        print(f"{joueur.nom} n'a aucune armure : se défendre ne servirait à rien.")
+        return "annule"
+    print(f"Garde levée pendant {DUREE_DEFENSE} tours : défense triplée, aucun nouvel effet.")
     joueur.tours_defense = DUREE_DEFENSE
-    tour_attaque(ennemi, joueur)
+    riposte(ennemi, joueur)
+    return None
+
+
+def tour_joueur(joueur, ennemi, compteur, boss):
+    """Joue un tour complet du joueur. Renvoie "victoire", "fuite" ou None."""
+    peut_agir = debut_de_tour(joueur)
+    if not joueur.est_vivant():
+        return None
+    if not peut_agir:
+        afficher_tour(compteur, joueur, ennemi)
+        annoncer_immobilisation(joueur)
+        riposte(ennemi, joueur)
+        return None
+    while True:
+        afficher_tour(compteur, joueur, ennemi)
+        match choix_combat(joueur):
+            case "1":
+                return action_attaquer(joueur, ennemi)
+            case "2":
+                if action_objet(joueur, ennemi) != "annule":
+                    return None
+            case "3":
+                return action_fuir(joueur, ennemi, boss)
+            case "4":
+                if action_defendre(joueur, ennemi) != "annule":
+                    return None
 
 
 def combat(joueur, ennemi, boss=False):
@@ -105,22 +186,11 @@ def combat(joueur, ennemi, boss=False):
     compteur = 1
     try:
         while joueur.est_vivant() and ennemi.est_vivant():
-            afficher_tour(compteur, joueur, ennemi)
-            match choix_combat(joueur):
-                case "1":
-                    if action_attaquer(joueur, ennemi) == "victoire":
-                        return "victoire"
-                case "2":
-                    if action_objet(joueur, ennemi) == "annule":
-                        continue
-                case "3":
-                    issue = action_fuir(joueur, ennemi, boss)
-                    if issue == "fuite":
-                        return "fuite"
-                case "4":
-                    action_defendre(joueur, ennemi)
+            issue = tour_joueur(joueur, ennemi, compteur, boss)
+            if issue is not None:
+                return issue
             compteur += 1
             joueur.tours_defense = max(0, joueur.tours_defense - 1)
-        return "defaite"
+        return "victoire" if joueur.est_vivant() else "defaite"
     finally:
-        joueur.tours_defense = 0
+        joueur.fin_de_combat()

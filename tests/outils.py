@@ -10,7 +10,7 @@ from ombrefer.objet import Potion
 from ombrefer.personnage import Joueur
 
 # Difficulté neutre : les modèles sont utilisés sans aucun changement.
-NEUTRE = Difficulte("Test", 30, 8, 2, 1, 1)
+NEUTRE = Difficulte("Test", 30, 8, 1, 1)
 
 # Lance un test une fois par mode de difficulté.
 chaque_mode = pytest.mark.parametrize(
@@ -35,9 +35,11 @@ def saisies(*reponses):
     return patch("builtins.input", side_effect=list(reponses))
 
 
-def creer_joueur(pv=30, attaque=8):
-    """Crée un joueur de test."""
-    return Joueur("Aldric", pv, attaque)
+def creer_joueur(pv=30, attaque=8, defense=0):
+    """Crée un joueur de test, sans armure par défaut."""
+    joueur = Joueur("Aldric", pv, attaque)
+    joueur.defense = defense
+    return joueur
 
 
 def joueur_avec_potion():
@@ -49,9 +51,10 @@ def joueur_avec_potion():
 
 
 def donjon_sans_danger(nb_salles):
-    """Crée un donjon sans ennemi ni piège."""
+    """Crée un donjon sans ennemi, ni piège, ni boutique."""
     donjon = generer_donjon(nb_salles, NEUTRE)
     for salle in donjon:
         salle.ennemi = None
         salle.piege = False
+        salle.boutique = None
     return donjon

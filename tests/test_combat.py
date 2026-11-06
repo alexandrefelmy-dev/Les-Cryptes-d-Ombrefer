@@ -57,7 +57,7 @@ def test_fuite_ratee_donne_une_riposte():
     joueur = creer_joueur()
     with hasard():
         assert action_fuir(joueur, Ennemi("Rat", 8, 10, 3), False) is None
-    assert joueur.pv == 22
+    assert joueur.pv == 20
 
 
 def test_impossible_de_fuir_un_boss():
@@ -65,42 +65,51 @@ def test_impossible_de_fuir_un_boss():
     joueur = creer_joueur()
     with hasard(0.3):
         assert action_fuir(joueur, Ennemi("Boss", 50, 10, 0), True) is None
-    assert joueur.pv == 22
+    assert joueur.pv == 20
 
 
 # --- Se défendre ---
 
 
-def test_defendre_double_la_defense_sans_la_modifier():
-    """Le bonus double la défense actuelle mais pas la défense de base."""
-    joueur = creer_joueur()
+def test_defendre_triple_la_defense_sans_la_modifier():
+    """Le bonus triple la défense actuelle sans changer la défense du joueur."""
+    joueur = creer_joueur(defense=2)
     with hasard():
         action_defendre(joueur, Ennemi("Rat", 8, 10, 3))
     assert joueur.tours_defense == 3
-    assert joueur.defense_actuelle() == 4
+    assert joueur.defense_actuelle() == 6
     assert joueur.defense == 2
-    assert joueur.pv == 24
+    assert joueur.pv == 26
+
+
+def test_defendre_sans_armure_est_refuse(capsys):
+    """Sans armure ni effet à craindre, se défendre est refusé : le tour n'est pas perdu."""
+    joueur = creer_joueur()
+    with hasard(), saisies("4", "1"):
+        combat(joueur, Ennemi("Rat", 8, 4, 3))
+    assert joueur.pv == 30
+    assert "aucune armure" in capsys.readouterr().out
 
 
 def test_defendre_dure_trois_tours():
-    """Dégâts de 10 : 6 + 6 + 6 avec le bonus, puis 8 sans lui."""
-    joueur = creer_joueur(pv=100, attaque=1)
+    """Dégâts de 10 : 4 + 4 + 4 avec le bonus, puis 8 sans lui."""
+    joueur = creer_joueur(pv=100, attaque=1, defense=2)
     with hasard(), saisies("4", "1", "1", "1", "1"):
         combat(joueur, Ennemi("Ogre", 4, 10, 0))
-    assert joueur.pv == 74
+    assert joueur.pv == 80
 
 
 def test_se_redefendre_relance_sans_cumuler():
-    """Se redéfendre remet le compteur à 3, sans quadrupler la défense."""
-    joueur = creer_joueur(pv=100, attaque=1)
+    """Se redéfendre remet le compteur à 3, sans multiplier encore la défense."""
+    joueur = creer_joueur(pv=100, attaque=1, defense=2)
     with hasard(), saisies("4", "1", "4", "1", "1", "1", "1"):
         combat(joueur, Ennemi("Ogre", 5, 10, 0))
-    assert joueur.pv == 100 - 6 * 5 - 8
+    assert joueur.pv == 100 - 4 * 5 - 8
 
 
 def test_bonus_retire_apres_une_victoire():
     """Le bonus ne survit pas à une victoire."""
-    joueur = creer_joueur(attaque=8)
+    joueur = creer_joueur(attaque=8, defense=2)
     with hasard(), saisies("4", "1"):
         combat(joueur, Ennemi("Rat", 8, 4, 3))
     assert joueur.tours_defense == 0
@@ -109,7 +118,7 @@ def test_bonus_retire_apres_une_victoire():
 
 def test_bonus_retire_apres_une_fuite():
     """Le bonus ne survit pas à une fuite."""
-    joueur = creer_joueur()
+    joueur = creer_joueur(defense=2)
     with hasard(0.3), saisies("4", "3"):
         combat(joueur, Ennemi("Rat", 8, 4, 3))
     assert joueur.tours_defense == 0
@@ -117,7 +126,7 @@ def test_bonus_retire_apres_une_fuite():
 
 def test_bonus_retire_apres_une_defaite():
     """Le bonus ne survit pas à une défaite."""
-    joueur = creer_joueur(pv=5)
+    joueur = creer_joueur(pv=5, defense=2)
     with hasard(), saisies("4"):
         combat(joueur, Ennemi("Ogre", 100, 50, 0))
     assert joueur.tours_defense == 0
@@ -168,6 +177,7 @@ def test_retour_en_combat_sans_riposte():
 def test_retour_ne_consomme_pas_un_tour_de_defense(capsys):
     """Le tour 2 s'affiche deux fois, avec le même compteur, avant et après le retour."""
     joueur = joueur_avec_potion()
+    joueur.defense = 2
     with hasard(), saisies("4", "2", "0", "1"):
         combat(joueur, Ennemi("Ogre", 1, 1, 0))
     sortie = capsys.readouterr().out

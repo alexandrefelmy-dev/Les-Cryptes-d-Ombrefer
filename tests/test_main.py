@@ -83,12 +83,12 @@ def test_difficulte_invalide_redemande():
 
 
 def test_creer_heros_utilise_les_stats_du_mode():
-    """Le héros reçoit les PV, l'attaque et la défense du mode."""
-    difficulte = Difficulte("Test", 21, 6, 4, 1, 1)
+    """Le héros reçoit les PV et l'attaque du mode, et commence sans défense."""
+    difficulte = Difficulte("Test", 21, 6, 1, 1)
     joueur = creer_heros("Aldric", difficulte)
     assert (joueur.nom, joueur.pv, joueur.pv_max) == ("Aldric", 21, 21)
     assert joueur.attaque == 6
-    assert joueur.defense == 4
+    assert joueur.defense == 0
 
 
 def test_le_donjon_suit_le_niveau_du_heros():

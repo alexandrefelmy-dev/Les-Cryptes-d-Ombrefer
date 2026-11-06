@@ -25,9 +25,7 @@ def choisir_difficulte():
 
 def creer_heros(nom, difficulte):
     """Crée un nouveau héros avec les stats de départ de la difficulté."""
-    joueur = Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
-    joueur.defense = difficulte.defense_joueur
-    return joueur
+    return Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
 
 
 def choix_menu_principal():

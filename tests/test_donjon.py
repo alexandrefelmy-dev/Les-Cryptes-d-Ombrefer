@@ -19,7 +19,10 @@ from ombrefer.donjon import (
     affronter_ennemi,
     ajuster,
     creer_arme,
+    creer_armure,
+    creer_boutique,
     creer_butin,
+    creer_remede,
     creer_ennemi,
     creer_salle,
     creer_salle_boss,
@@ -31,12 +34,19 @@ from ombrefer.donjon import (
     FORCE_PAR_NIVEAU,
     generer_donjon,
     MODELES_ARMES,
+    MODELES_ARMURES,
+    CHANCE_BOUTIQUE,
+    CHANCE_EFFET_BOSS,
+    CHANCE_EFFET_ENNEMI,
+    MODELES_REMEDES,
+    Salle,
     MODELES_BOSS,
     MODELES_ENNEMIS,
     pause,
     traverser_salle,
 )
-from ombrefer.objet import Arme, Potion
+from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
+from ombrefer.objet import Arme, Armure, Potion, Remede
 from ombrefer.personnage import Ennemi
 
 
@@ -88,41 +98,41 @@ def test_ajuster_ne_descend_pas_sous_un():
 
 def test_creer_ennemi_selon_la_force():
     """La force multiplie les PV et l'attaque, mais pas la récompense."""
-    with patch("random.choice", return_value=("Rat", 10, 5, 3)):
-        ennemi = creer_ennemi(Difficulte("Test", 30, 8, 2, 2, 1))
+    with patch("random.choices", return_value=[("Rat", 10, 5, 3, POISON, 10)]):
+        ennemi = creer_ennemi(Difficulte("Test", 30, 8, 2, 1))
     assert (ennemi.pv_max, ennemi.attaque, ennemi.recompense) == (20, 10, 3)
 
 
 def test_creer_boss_selon_la_force():
     """La force renforce le boss sans toucher à ses récompenses."""
-    modele = (("Boss", 50, 10, 40), ("Arme", 6))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
     with patch("random.choice", return_value=modele):
-        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 2, 2, 1))
+        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 2, 1))
     assert (salle.ennemi.pv_max, salle.ennemi.attaque) == (100, 20)
     assert (salle.ennemi.recompense, salle.butin.bonus) == (40, 6)
 
 
 def test_recompenses_du_boss_selon_le_mode():
     """Le gain multiplie l'or et le bonus de l'arme, sans renforcer le boss."""
-    modele = (("Boss", 50, 10, 40), ("Arme", 6))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
     with patch("random.choice", return_value=modele):
-        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 2, 1, 2))
+        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 1, 2))
     assert (salle.ennemi.recompense, salle.butin.bonus) == (80, 12)
     assert (salle.ennemi.pv_max, salle.ennemi.attaque) == (50, 10)
 
 
 def test_gain_des_ennemis_normaux():
     """Le gain multiplie la récompense, donc l'or et l'XP, sans renforcer l'ennemi."""
-    with patch("random.choice", return_value=("Rat", 10, 5, 4)):
-        ennemi = creer_ennemi(Difficulte("Test", 30, 8, 2, 1, 1, gain_ennemis=1.5))
+    with patch("random.choices", return_value=[("Rat", 10, 5, 4, POISON, 10)]):
+        ennemi = creer_ennemi(Difficulte("Test", 30, 8, 1, 1, gain_ennemis=1.5))
     assert (ennemi.recompense, ennemi.pv_max, ennemi.attaque) == (6, 10, 5)
 
 
 def test_le_gain_d_ennemi_ne_change_pas_le_boss():
     """Seul recompense_boss change les récompenses du boss."""
-    modele = (("Boss", 50, 10, 40), ("Arme", 6))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
     with patch("random.choice", return_value=modele):
-        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 2, 1, 1, gain_ennemis=3))
+        salle = creer_salle_boss([], Difficulte("Test", 30, 8, 1, 1, gain_ennemis=3))
     assert salle.ennemi.recompense == 40
 
 
@@ -141,14 +151,14 @@ def test_les_pieges_augmentent_avec_la_difficulte():
 def test_salle_utilise_la_chance_de_piege():
     """Un même tirage déclenche le piège seulement si la chance du mode est assez haute."""
     with hasard(0.15):
-        assert creer_salle(1, Difficulte("Test", 30, 8, 2, 1, 1, chance_piege=0.2)).piege
-        assert not creer_salle(1, Difficulte("Test", 30, 8, 2, 1, 1, chance_piege=0.1)).piege
+        assert creer_salle(1, Difficulte("Test", 30, 8, 1, 1, chance_piege=0.2)).piege
+        assert not creer_salle(1, Difficulte("Test", 30, 8, 1, 1, chance_piege=0.1)).piege
 
 
 def test_salle_boss_utilise_la_chance_de_piege():
     """La salle du boss suit aussi la chance de piège du mode."""
     with hasard(0.15):
-        assert creer_salle_boss([], Difficulte("Test", 30, 8, 2, 1, 1, chance_piege=0.2)).piege
+        assert creer_salle_boss([], Difficulte("Test", 30, 8, 1, 1, chance_piege=0.2)).piege
         assert not creer_salle_boss([], NEUTRE).piege
 
 
@@ -162,14 +172,20 @@ def test_butin_utilise_la_chance_de_potion():
     """Un même tirage donne une potion seulement si la chance du mode est assez haute."""
     with hasard(0.45):
         assert isinstance(creer_butin(NEUTRE), Potion)
-        assert creer_butin(Difficulte("Test", 30, 8, 2, 1, 1, chance_potion=0.4)) is None
+        assert creer_butin(Difficulte("Test", 30, 8, 1, 1, chance_potion=0.4)) is None
 
 
 def test_reste_du_butin_selon_le_mode():
-    """Hors potions, il reste 60 % de rien et 40 % d'armes."""
-    difficulte = Difficulte("Test", 30, 8, 2, 1, 1, chance_potion=0.4)
-    with hasard(0.75):
+    """Hors potions : 30 % de rien, 10 % de remèdes, 20 % d'armures et 40 % d'armes."""
+    difficulte = Difficulte("Test", 30, 8, 1, 1, chance_potion=0.4)
+    with hasard(0.57):
         assert creer_butin(difficulte) is None
+    with hasard(0.6):
+        assert isinstance(creer_butin(difficulte), Remede)
+    with hasard(0.65):
+        assert isinstance(creer_butin(difficulte), Armure)
+    with hasard(0.75):
+        assert isinstance(creer_butin(difficulte), Armure)
     with hasard(0.77):
         assert isinstance(creer_butin(difficulte), Arme)
 
@@ -218,7 +234,7 @@ def test_niveau_1_ne_change_rien():
 def test_force_suit_le_niveau():
     """Chaque niveau au-dessus de 1 ajoute FORCE_PAR_NIVEAU à la force."""
     assert FORCE_PAR_NIVEAU > 0
-    adaptee = adapter_au_niveau(Difficulte("Test", 30, 8, 2, 2, 1), 3)
+    adaptee = adapter_au_niveau(Difficulte("Test", 30, 8, 2, 1), 3)
     assert adaptee.force_ennemis == 2 * (1 + 2 * FORCE_PAR_NIVEAU)
 
 
@@ -288,10 +304,155 @@ def test_butin_arme():
     assert arme.nom == MODELES_ARMES[-1][0]
 
 
+def test_boutique_vend_un_objet_de_chaque_sorte():
+    """Le stock contient une potion, un remède, une arme et une armure."""
+    types = [type(objet) for objet in creer_boutique(NEUTRE)]
+    assert types == [Potion, Remede, Arme, Armure]
+
+
+def test_salle_avec_boutique_selon_le_tirage():
+    """Une boutique n'apparaît que si le tirage est sous la chance prévue."""
+    with hasard(CHANCE_BOUTIQUE - 0.01):
+        assert creer_salle(1, NEUTRE).boutique is not None
+    with hasard(CHANCE_BOUTIQUE):
+        assert creer_salle(1, NEUTRE).boutique is None
+
+
+def test_pas_de_boutique_apres_le_boss():
+    """La salle du boss est la dernière : aucun marchand n'y attend."""
+    with hasard(0):
+        assert creer_salle_boss([], NEUTRE).boutique is None
+
+
+def test_pause_sans_boutique_refuse_le_choix_3(capsys):
+    """Sans marchand, le choix 3 n'existe pas."""
+    with saisies("3", "2"):
+        pause(creer_joueur())
+    sortie = capsys.readouterr().out
+    assert "boutique" not in sortie
+    assert "Choix invalide." in sortie
+
+
+def test_pause_mene_a_la_boutique_puis_permet_de_s_equiper():
+    """On achète à la pause, et on peut s'équiper avant de repartir."""
+    joueur = creer_joueur()
+    joueur.gagner_or(15)
+    with saisies("3", "1", "1", "1", "2"):
+        pause(joueur, [Arme("Epée", 3)])
+    assert joueur.piece == 0
+    assert joueur.arme.nom == "Epée"
+
+
+def test_fuir_laisse_acceder_a_la_boutique(capsys):
+    """Après une fuite, la pause propose quand même la boutique de la salle."""
+    joueur = creer_joueur()
+    salle = Salle(1, Ennemi("Rat", 8, 4, 3), None, False, boutique=[Potion("Potion", 10)])
+    with hasard(0.3), saisies("3", "2"):
+        assert traverser_salle(joueur, salle) is True
+    assert "3. Aller à la boutique" in capsys.readouterr().out
+
+
+def test_chaque_effet_a_ses_ennemis_ses_armes_et_ses_armures():
+    """Les quatre effets existent chez les ennemis, les armes et les armures."""
+    tous = {POISON, SAIGNEMENT, IMMOBILISATION, AFFAIBLISSEMENT}
+    assert {modele[4] for modele in MODELES_ENNEMIS} - {None} == tous
+    assert {modele[3] for modele in MODELES_ARMES} - {None} == tous
+    assert {modele[3] for modele in MODELES_ARMURES} - {None} == tous
+
+
+def test_cinq_ennemis_sur_neuf_ont_un_effet():
+    """Il y a 9 ennemis, dont 5 avec un effet."""
+    assert len(MODELES_ENNEMIS) == 9
+    assert sum(modele[4] is not None for modele in MODELES_ENNEMIS) == 5
+
+
+def test_les_ennemis_sans_effet_sont_plus_solides():
+    """Sans effet, un ennemi a plus de PV et d'attaque que ses voisins à effet."""
+    avec = [modele for modele in MODELES_ENNEMIS if modele[4] is not None]
+    sans = [modele for modele in MODELES_ENNEMIS if modele[4] is None]
+    assert sum(modele[1] * modele[2] for modele in sans) / len(sans) > sum(
+        modele[1] * modele[2] for modele in avec
+    ) / len(avec)
+
+
+def test_les_ennemis_dangereux_sont_les_plus_rares():
+    """Du premier au dernier : le danger et la récompense montent, les chances baissent."""
+    danger = [modele[1] * modele[2] for modele in MODELES_ENNEMIS]
+    recompenses = [modele[3] for modele in MODELES_ENNEMIS]
+    chances = [modele[5] for modele in MODELES_ENNEMIS]
+    assert danger == sorted(set(danger))
+    assert recompenses == sorted(set(recompenses))
+    assert chances == sorted(set(chances), reverse=True)
+    assert sum(chances) == 100
+
+
+def test_frequences_des_ennemis():
+    """Sur beaucoup de tirages, chaque ennemi apparaît plus souvent que le suivant."""
+    noms = [creer_ennemi(NEUTRE).nom for _ in range(100000)]
+    totaux = [noms.count(modele[0]) for modele in MODELES_ENNEMIS]
+    assert totaux == sorted(totaux, reverse=True)
+
+
+def test_chaque_boss_a_son_propre_effet():
+    """Les quatre boss ont chacun un effet différent, repris par leur arme."""
+    effets = [stats[4] for stats, _ in MODELES_BOSS]
+    assert len(set(effets)) == 4
+    assert all(stats[4] == arme[2] for stats, arme in MODELES_BOSS)
+
+
+def test_les_boss_infligent_plus_souvent_leur_effet():
+    """Un boss a plus de chances d'infliger son effet qu'un ennemi normal."""
+    with hasard(0):
+        boss = creer_salle_boss([], NEUTRE).ennemi
+    assert boss.chance_effet == CHANCE_EFFET_BOSS > CHANCE_EFFET_ENNEMI
+    assert creer_ennemi(NEUTRE).chance_effet == CHANCE_EFFET_ENNEMI
+
+
+def test_creer_remede_respecte_son_modele():
+    """Chaque modèle donne un remède qui guérit les bons effets."""
+    for modele in MODELES_REMEDES:
+        with patch("random.choices", return_value=[modele]):
+            remede = creer_remede(NEUTRE)
+        assert (remede.nom, remede.effets) == modele[:2]
+
+
+def test_pas_de_remede_contre_l_immobilisation():
+    """L'immobilisation fait perdre le tour : aucune potion ne pourrait être bue à temps."""
+    assert all(IMMOBILISATION not in modele[1] for modele in MODELES_REMEDES)
+
+
+def test_il_y_a_huit_armures_differentes():
+    """Il y a 8 armures, toutes avec un nom différent."""
+    assert len(MODELES_ARMURES) == 8
+    assert len({modele[0] for modele in MODELES_ARMURES}) == 8
+
+
+def test_plus_une_armure_est_forte_plus_elle_est_rare():
+    """Le bonus monte et les chances baissent à chaque armure."""
+    bonus = [modele[1] for modele in MODELES_ARMURES]
+    chances = [modele[2] for modele in MODELES_ARMURES]
+    assert bonus == sorted(set(bonus))
+    assert chances == sorted(set(chances), reverse=True)
+
+
+def test_les_armures_font_toujours_10_pourcent_du_butin():
+    """Les chances des armures, sur 1000 salles, font 100 au total."""
+    assert sum(modele[2] for modele in MODELES_ARMURES) == 100
+
+
+@pytest.mark.parametrize("modele", MODELES_ARMURES, ids=lambda modele: modele[0])
+def test_creer_armure_respecte_son_modele(modele):
+    """Chaque modèle donne une armure avec le bon nom et le bon bonus."""
+    with patch("random.choices", return_value=[modele]):
+        armure = creer_armure(NEUTRE)
+    assert isinstance(armure, Armure)
+    assert (armure.nom, armure.bonus) == modele[:2]
+
+
 def test_il_y_a_dix_armes_differentes():
     """Il y a 10 armes, toutes avec un nom différent."""
     assert len(MODELES_ARMES) == 10
-    assert len({nom for nom, _, _ in MODELES_ARMES}) == 10
+    assert len({modele[0] for modele in MODELES_ARMES}) == 10
 
 
 def test_plus_une_arme_est_forte_plus_elle_est_rare():
@@ -309,7 +470,7 @@ def test_les_armes_font_toujours_20_pourcent_du_butin():
 
 def test_la_meilleure_arme_est_tres_rare_et_tres_forte():
     """La meilleure arme tombe 1 fois sur 1000 et bat largement l'avant-dernière."""
-    _, bonus, chances = MODELES_ARMES[-1]
+    _, bonus, chances, _ = MODELES_ARMES[-1]
     assert chances == 1
     assert bonus >= MODELES_ARMES[-2][1] * 1.5
 
@@ -370,7 +531,8 @@ def test_il_y_a_quatre_boss_differents():
 
 def test_le_roi_liche_est_un_boss():
     """Le Roi liche fait partie des boss, avec ses stats d'origine."""
-    assert (("Roi liche", 50, 12, 50), ("Epée du roi liche", 10)) in MODELES_BOSS
+    roi_liche = ("Roi liche", 50, 12, 50, AFFAIBLISSEMENT)
+    assert (roi_liche, ("Epée du roi liche", 14, AFFAIBLISSEMENT)) in MODELES_BOSS
 
 
 @pytest.mark.parametrize("stats, arme", MODELES_BOSS, ids=[boss[0][0] for boss in MODELES_BOSS])
@@ -393,7 +555,7 @@ def test_les_quatre_boss_peuvent_sortir():
 
 def test_piege_blesse_le_joueur():
     """Un piège de 8 dégâts, réduit par la défense, retire 6 PV."""
-    joueur = creer_joueur()
+    joueur = creer_joueur(defense=2)
     with hasard():
         assert declencher_piege(joueur) is True
     assert joueur.pv == 24
@@ -492,7 +654,7 @@ def test_fuite_aeree(capsys):
     """La fuite et le menu de pause sont séparés du combat par une ligne vide."""
     joueur = creer_joueur()
     with hasard(0.3), saisies("3", "2"):
-        affronter_ennemi(joueur, Ennemi("Rat", 8, 4, 3))
+        traverser_salle(joueur, Salle(1, Ennemi("Rat", 8, 4, 3), None, False))
     sortie = capsys.readouterr().out
     assert "\n\nAldric s'enfuit" in sortie
     assert "\n\n1. Utiliser" in sortie
@@ -552,8 +714,12 @@ def test_ecran_efface_entre_les_salles_seulement():
 def test_ecran_efface_apres_la_pause():
     """Le texte d'une salle reste affiché tant que le joueur n'a pas quitté la pause."""
     appels = []
+
+    def noter_pause(_joueur, _boutique):
+        appels.append("pause")
+
     with patch("ombrefer.donjon.effacer_ecran", side_effect=lambda: appels.append("efface")):
-        with patch("ombrefer.donjon.pause", side_effect=lambda joueur: appels.append("pause")):
+        with patch("ombrefer.donjon.pause", side_effect=noter_pause):
             explorer(creer_joueur(), donjon_sans_danger(2))
     assert appels == ["pause", "efface", "pause"]
 

@@ -3,7 +3,7 @@
 from outils import creer_joueur, hasard, joueur_avec_potion
 
 from ombrefer.objet import Potion
-from ombrefer.personnage import Personnage
+from ombrefer.personnage import Joueur, Personnage
 
 
 # --- Personnage ---
@@ -82,9 +82,34 @@ def test_gagner_or():
     assert joueur.piece == 20
 
 
+def test_pas_de_defense_de_base():
+    """Un nouveau joueur n'a aucune défense : les dégâts passent entièrement."""
+    joueur = Joueur("Aldric", 30, 8)
+    assert joueur.defense == 0
+    with hasard():
+        joueur.subir_degats(10)
+    assert joueur.pv == 20
+
+
+def test_payer_retire_l_or():
+    """Le paiement réussit si le joueur a assez d'or, tout juste compris."""
+    joueur = creer_joueur()
+    joueur.gagner_or(15)
+    assert joueur.payer(15) is True
+    assert joueur.piece == 0
+
+
+def test_payer_sans_assez_d_or():
+    """Sans assez d'or, le paiement échoue et l'or ne bouge pas."""
+    joueur = creer_joueur()
+    joueur.gagner_or(10)
+    assert joueur.payer(11) is False
+    assert joueur.piece == 10
+
+
 def test_la_defense_reduit_les_degats():
     """La défense de 2 retire 2 points de dégâts."""
-    joueur = creer_joueur()
+    joueur = creer_joueur(defense=2)
     with hasard():
         joueur.subir_degats(10)
     assert joueur.pv == 22
@@ -92,7 +117,7 @@ def test_la_defense_reduit_les_degats():
 
 def test_la_defense_ne_soigne_pas():
     """Des dégâts plus faibles que la défense n'ajoutent pas de PV."""
-    joueur = creer_joueur()
+    joueur = creer_joueur(defense=2)
     joueur.pv = 20
     with hasard():
         joueur.subir_degats(1)
