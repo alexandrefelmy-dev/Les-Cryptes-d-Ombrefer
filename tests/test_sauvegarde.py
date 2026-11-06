@@ -157,6 +157,13 @@ def test_fichier_refuse_n_est_pas_supprime(fichier_sauvegarde):
     assert fichier_sauvegarde.read_bytes() == avant
 
 
+def test_fichier_d_un_ancien_format_est_refuse(fichier_sauvegarde, capsys):
+    """Une sauvegarde bien signée mais incomplète est refusée sans planter."""
+    fichier_sauvegarde.write_bytes(encoder({"nom": "Aldric"}))
+    assert charger() is None
+    assert "trop ancien" in capsys.readouterr().out
+
+
 def test_la_signature_depend_du_contenu():
     """Deux contenus différents n'ont pas la même signature."""
     assert signer(b"a") != signer(b"b")

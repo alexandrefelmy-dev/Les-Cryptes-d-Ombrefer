@@ -105,7 +105,7 @@ def test_affichage_de_l_equipement(capsys):
     joueur = creer_joueur()
     Arme("Epée", 3).utiliser(joueur)
     afficher_equipement(joueur)
-    assert "Epée (+3 attaque), aucune armure" in capsys.readouterr().out
+    assert "Epée (Lance, +3 attaque), aucune armure" in capsys.readouterr().out
 
 
 def test_affichage_armure():

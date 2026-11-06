@@ -32,6 +32,7 @@ python -m pytest
 
 ## 🎮 Fonctionnalités actuelles
 
+- 5 classes de héros avec leurs stats et une attaque spéciale à recharge : Guerrier, Voleur, Mage, Nécromancien et Berserker
 - Niveaux de donjon qui s'enchaînent sans fin, de 6 à 9 salles générées au hasard : ennemis, butin et pièges
 - Combat au tour par tour contre 16 types d'ennemis, dont 7 qui n'arrivent qu'après le premier niveau
 - Les ennemis sans effet compensent avec de meilleures stats
@@ -40,11 +41,40 @@ python -m pytest
 - Se défendre double la défense et bloque les nouveaux effets pendant 3 tours, une seule fois par combat, et on ne peut pas fuir un boss
 - Dégâts aléatoires, coups critiques (20 %), esquive du joueur (10 %) et défense
 - Le héros commence sans défense : seules les armures l'augmentent
-- 3 potions de soin, 4 remèdes, 10 armes et 8 armures : plus l'objet est fort, plus il est rare
+- 3 potions de soin, 4 remèdes, 17 armes et 8 armures : plus l'objet est fort, plus il est rare
+- Les armes ont une famille : selon la classe, elles donnent un gros bonus, un malus ou rien de spécial
 - Une seule arme et une seule armure portées à la fois : l'ancienne retourne dans l'inventaire
 - Boutique : à la sortie d'une salle (30 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or
 - XP et montées de niveau, et option 0 pour revenir en arrière dans les menus
 - Sauvegarde du héros et de son niveau de donjon après chaque niveau terminé
+
+### Classes de héros
+
+La classe se choisit à la création du héros et ne change plus. Les PV et l'attaque s'appliquent aux valeurs de base du mode.
+
+| Classe | PV | Attaque | Particularité | Attaque spéciale | Recharge |
+| --- | --- | --- | --- | --- | --- |
+| **Guerrier** | +10 % | +0 | Aucune | **Coup puissant :** dégâts doublés, sans petit jet | 6 tours |
+| **Voleur** | −15 % | +1 | Critique 30 %, esquive 15 % | **Frappe sournoise :** critique assuré et saignement | 4 tours |
+| **Mage** | −20 % | +2 | Aucune | **Éclair :** 1,25 × l'attaque, sans hasard, et affaiblissement | 6 tours |
+| **Nécromancien** | +0 % | +0 | Aucune | **Drain de vie :** coup normal, et soin égal aux dégâts | 3 tours |
+| **Berserker** | +15 % | +2 | Ne peut pas se défendre | **Rage :** attaque ×1,5 pendant 3 attaques, 1 dégât de plus reçu | 5 tours |
+
+La recharge ne compte que les tours de combat et continue d'un combat à l'autre : l'utiliser sur un petit ennemi peut en priver contre le boss. Le repos entre deux niveaux la remet à zéro.
+
+### Armes et classes
+
+Chaque arme appartient à une famille. Selon la classe, son bonus d'attaque est multiplié par 1,5 (gros bonus) ou par 0,5 (malus), ou reste inchangé. L'inventaire et la boutique affichent la valeur réelle pour le héros.
+
+| Classe | Gros bonus | Malus | Neutre |
+| --- | --- | --- | --- |
+| **Guerrier** | Épée | Dague, Bâton | Faux, Hache, Lance |
+| **Voleur** | Dague | Bâton, Hache | Épée, Faux, Lance |
+| **Mage** | Bâton | Épée, Hache | Dague, Faux, Lance |
+| **Nécromancien** | Faux | Épée, Hache | Dague, Bâton, Lance |
+| **Berserker** | Hache | Dague, Bâton | Épée, Faux, Lance |
+
+Chaque famille favorite compte trois armes, et les deux lances sont neutres pour tout le monde. Le prix suit le bonus de base, donc une arme adaptée à sa classe est une bonne affaire.
 
 ### Niveaux de donjon
 
@@ -54,7 +84,7 @@ Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros s
 - les ennemis dangereux tombent plus souvent et de nouveaux ennemis apparaissent
 - les armes et armures fortes sont moins rares, jusqu'à une limite
 
-Le fichier `sauvegarde.sav` contient `niveau_donjon`, le niveau où le héros repartira, et `difficulte`, son mode. Le mode choisi à la création du héros ne peut plus changer : il est repris automatiquement au chargement.
+Le fichier `sauvegarde.sav` contient `niveau_donjon`, le niveau où le héros repartira, ainsi que `difficulte` et `classe`. Le mode et la classe choisis à la création du héros ne peuvent plus changer : ils sont repris automatiquement au chargement.
 
 Ce fichier est compressé et signé : il n'est pas lisible, et le jeu refuse de le charger s'il a été modifié.
 
@@ -96,18 +126,18 @@ Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour u
 
 | | Facile | Intermédiaire | Difficile |
 | --- | --- | --- | --- |
-| **PV / attaque de départ** | 41 / 8 | 33 / 8 | 24 / 7 |
-| **Force des ennemis** | ×1,15 | ×1,25 | ×1,35 |
+| **PV / attaque de base** | 35 / 8 | 28 / 8 | 21 / 7 |
+| **Force des ennemis** | ×1,23 | ×1,36 | ×1,5 |
 | **Pièges** | 5 % | 10 % | 20 % |
 | **Potions** | 55 % | 50 % | 40 % |
 | **Or et XP des ennemis** | ×1 | ×1,25 | ×1,5 |
 | **Récompenses du boss** | ×1 | ×1,5 | ×2 |
 | **Boss possibles au niveau 1** | 3 | 3 | 4 |
-| **Force ajoutée au niveau 2** | +53 % | +82 % | +114 % |
+| **Force ajoutée au niveau 2** | +56 % | +85 % | +120 % |
 
 Les armes et armures fortes sont aussi moins rares quand la difficulté monte, et le Seigneur vampire n'apparaît qu'en mode Difficile. La force dépend du niveau du donjon et non du niveau du héros.
 
-Un bot simple qui achète en boutique et ne se défend jamais réussit environ 67 % des niveaux en Facile, 40 % en Intermédiaire et 15 % en Difficile, du niveau 1 aux niveaux suivants.
+Un bot simple qui achète en boutique, utilise son attaque spéciale dès qu'elle est prête et ne se défend jamais réussit en moyenne, sur les 5 classes et les niveaux 1 à 8, environ 67 % des niveaux en Facile, 40 % en Intermédiaire et 15 % en Difficile.
 
 ## 📁 Structure du projet
 
@@ -118,6 +148,7 @@ Le code du jeu est dans `src/ombrefer/` :
 | `__main__.py` | Point d'entrée de `python -m ombrefer` |
 | `main.py` | Menu principal, choix de la difficulté et lancement d'une partie |
 | `personnage.py` | Classes `Personnage`, `Joueur` (avec inventaire) et `Ennemi` |
+| `classe.py` | Classes de héros : stats et attaques spéciales |
 | `effet.py` | Noms et réglages des effets |
 | `objet.py` | Classes `Objet`, `Potion`, `Remede`, `Arme` et `Armure`, affichage de l'inventaire |
 | `combat.py` | Déroulement du combat |

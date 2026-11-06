@@ -50,6 +50,6 @@ def charger():
             return Joueur.from_dict(decoder(f.read()))
     except FileNotFoundError:
         return None
-    except ValueError:
-        print("Erreur : le fichier de sauvegarde est corrompu ou a été modifié.")
+    except (ValueError, KeyError):
+        print("Erreur : le fichier de sauvegarde est corrompu, modifié ou trop ancien.")
         return None

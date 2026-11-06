@@ -51,7 +51,8 @@ from ombrefer.donjon import (
     traverser_salle,
 )
 from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
-from ombrefer.objet import Arme, Armure, Potion, Remede
+from ombrefer.classe import CLASSES, GROS_BONUS
+from ombrefer.objet import Arme, Armure, BATON, EPEE, HACHE, LANCE, Potion, Remede
 from ombrefer.personnage import Ennemi
 
 
@@ -110,7 +111,7 @@ def test_creer_ennemi_selon_la_force():
 
 def test_creer_boss_selon_la_force():
     """La force renforce le boss sans toucher à ses récompenses."""
-    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, LANCE))
     with patch("random.choice", return_value=modele):
         salle = creer_salle_boss([], Difficulte("Test", 30, 8, 2, 1))
     assert (salle.ennemi.pv_max, salle.ennemi.attaque) == (100, 20)
@@ -119,7 +120,7 @@ def test_creer_boss_selon_la_force():
 
 def test_recompenses_du_boss_selon_le_mode():
     """Le gain multiplie l'or et le bonus de l'arme, sans renforcer le boss."""
-    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, LANCE))
     with patch("random.choice", return_value=modele):
         salle = creer_salle_boss([], Difficulte("Test", 30, 8, 1, 2))
     assert (salle.ennemi.recompense, salle.butin.bonus) == (80, 12)
@@ -135,7 +136,7 @@ def test_gain_des_ennemis_normaux():
 
 def test_le_gain_d_ennemi_ne_change_pas_le_boss():
     """Seul recompense_boss change les récompenses du boss."""
-    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, LANCE))
     with patch("random.choice", return_value=modele):
         salle = creer_salle_boss([], Difficulte("Test", 30, 8, 1, 1, gain_ennemis=3))
     assert salle.ennemi.recompense == 40
@@ -532,10 +533,40 @@ def test_creer_armure_respecte_son_modele(modele):
     assert (armure.nom, armure.bonus) == modele[:2]
 
 
-def test_il_y_a_dix_armes_differentes():
-    """Il y a 10 armes, toutes avec un nom différent."""
-    assert len(MODELES_ARMES) == 10
-    assert len({modele[0] for modele in MODELES_ARMES}) == 10
+def test_il_y_a_dix_sept_armes_differentes():
+    """Il y a 17 armes, toutes avec un nom différent."""
+    assert len(MODELES_ARMES) == 17
+    assert len({modele[0] for modele in MODELES_ARMES}) == 17
+
+
+@pytest.mark.parametrize("classe", CLASSES.values(), ids=lambda classe: classe.nom)
+def test_chaque_classe_a_ses_armes_a_tous_les_stades(classe):
+    """Chaque classe a trois armes à gros bonus, de la plus faible à la plus forte."""
+    bonus = [
+        modele[1] for modele in MODELES_ARMES if classe.affinite(modele[4]) == GROS_BONUS
+    ]
+    assert len(bonus) == 3
+    assert bonus[0] < bonus[1] < bonus[2]
+
+
+def test_il_y_a_des_armes_neutres_pour_tous():
+    """Les lances n'ont ni bonus ni malus, quelle que soit la classe."""
+    lances = [modele for modele in MODELES_ARMES if modele[4] == LANCE]
+    assert len(lances) == 2
+    assert all(classe.affinite(LANCE) == 1 for classe in CLASSES.values())
+
+
+def test_creer_arme_garde_sa_famille():
+    """Une arme créée garde la famille de son modèle."""
+    with patch("random.choices", return_value=[MODELES_ARMES[3]]):
+        assert creer_arme(NEUTRE).famille == BATON
+
+
+def test_arme_de_boss_garde_sa_famille():
+    """L'arme d'un boss garde sa famille, même renforcée par le mode."""
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, HACHE))
+    with patch("random.choice", return_value=modele):
+        assert creer_salle_boss([], NEUTRE).butin.famille == HACHE
 
 
 def test_plus_une_arme_est_forte_plus_elle_est_rare():
@@ -553,7 +584,7 @@ def test_les_armes_font_toujours_20_pourcent_du_butin():
 
 def test_la_meilleure_arme_est_tres_rare_et_tres_forte():
     """La meilleure arme tombe 1 fois sur 1000 et bat largement l'avant-dernière."""
-    _, bonus, chances, _ = MODELES_ARMES[-1]
+    _, bonus, chances, _, _ = MODELES_ARMES[-1]
     assert chances == 1
     assert bonus >= MODELES_ARMES[-2][1] * 1.5
 
@@ -615,7 +646,7 @@ def test_il_y_a_quatre_boss_differents():
 def test_le_roi_liche_est_un_boss():
     """Le Roi liche fait partie des boss, avec ses stats d'origine."""
     roi_liche = ("Roi liche", 50, 12, 50, AFFAIBLISSEMENT)
-    assert (roi_liche, ("Epée du roi liche", 14, AFFAIBLISSEMENT)) in MODELES_BOSS
+    assert (roi_liche, ("Epée du roi liche", 14, AFFAIBLISSEMENT, EPEE)) in MODELES_BOSS
 
 
 @pytest.mark.parametrize("stats, arme", MODELES_BOSS, ids=[boss[0][0] for boss in MODELES_BOSS])

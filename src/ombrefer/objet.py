@@ -1,5 +1,13 @@
 """Objets du jeu (potions, remèdes, armes, armures) et affichage de l'inventaire."""
 
+# Familles d'armes : chaque classe de héros est plus ou moins à l'aise avec chacune.
+DAGUE = "Dague"
+EPEE = "Épée"
+BATON = "Bâton"
+FAUX = "Faux"
+HACHE = "Hache"
+LANCE = "Lance"  # neutre pour toutes les classes
+
 # Prix en boutique, par PV soigné, par point de bonus ou par effet.
 PRIX_PAR_PV = 1.5
 PRIX_PAR_ATTAQUE = 5
@@ -33,6 +41,10 @@ class Objet:
     def prix(self):
         """Renvoie le prix de l'objet en boutique."""
         return 0
+
+    def texte_pour(self, joueur):  # pylint: disable=unused-argument
+        """Renvoie le texte de l'objet tel qu'il vaut pour ce joueur."""
+        return str(self)
 
     def __str__(self):
         return self.nom
@@ -105,10 +117,17 @@ class Remede(Objet):
 class Arme(Objet):
     """Objet qui augmente l'attaque du joueur tant qu'il le porte, parfois avec un effet."""
 
-    def __init__(self, nom, bonus, effet=None):
+    def __init__(self, nom, bonus, effet=None, famille=LANCE):
         super().__init__(nom)
         self.bonus = bonus
         self.effet = effet
+        self.famille = famille
+
+    def bonus_pour(self, classe):
+        """Renvoie le bonus d'attaque réel pour cette classe, selon son affinité avec l'arme."""
+        if classe is None:
+            return self.bonus
+        return max(1, round(self.bonus * classe.affinite(self.famille)))
 
     def utiliser(self, joueur):
         attaque_initiale = joueur.attaque
@@ -123,14 +142,23 @@ class Arme(Objet):
         donnees["type"] = "arme"
         donnees["bonus"] = self.bonus
         donnees["effet"] = self.effet
+        donnees["famille"] = self.famille
         return donnees
 
     def prix(self):
         return self.bonus * PRIX_PAR_ATTAQUE + (PRIX_EFFET if self.effet else 0)
 
+    def texte_pour(self, joueur):
+        bonus = self.bonus_pour(joueur.classe)
+        if bonus > self.bonus:
+            return f"{self} : +{bonus} attaque pour toi (bonus de classe)"
+        if bonus < self.bonus:
+            return f"{self} : +{bonus} attaque pour toi (malus de classe)"
+        return str(self)
+
     def __str__(self):
         effet = f", {self.effet}" if self.effet else ""
-        return f"{super().__str__()} (+{self.bonus} attaque{effet})"
+        return f"{super().__str__()} ({self.famille}, +{self.bonus} attaque{effet})"
 
 
 class Armure(Objet):
@@ -166,7 +194,8 @@ class Armure(Objet):
 
 def afficher_equipement(joueur):
     """Affiche l'arme et l'armure portées par le joueur."""
-    print(f"Équipement : {joueur.arme or 'aucune arme'}, {joueur.armure or 'aucune armure'}")
+    arme = joueur.arme.texte_pour(joueur) if joueur.arme else "aucune arme"
+    print(f"Équipement : {arme}, {joueur.armure or 'aucune armure'}")
 
 
 def afficher_inventaire(joueur):
@@ -174,7 +203,7 @@ def afficher_inventaire(joueur):
     afficher_equipement(joueur)
     print("Inventaire :")
     for numero, objet in enumerate(joueur.inventaire, start=1):
-        print(f"  {numero}. {objet}")
+        print(f"  {numero}. {objet.texte_pour(joueur)}")
 
 
 def objet_depuis_dict(donnees):
@@ -183,7 +212,7 @@ def objet_depuis_dict(donnees):
         case "potion":
             return Potion(donnees["nom"], donnees["soin"])
         case "arme":
-            return Arme(donnees["nom"], donnees["bonus"], donnees["effet"])
+            return Arme(donnees["nom"], donnees["bonus"], donnees["effet"], donnees["famille"])
         case "armure":
             return Armure(donnees["nom"], donnees["bonus"], donnees["protection"])
         case "remede":

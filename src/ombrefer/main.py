@@ -2,6 +2,7 @@
 
 import random
 
+from ombrefer.classe import CLASSES
 from ombrefer.donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
 from ombrefer.personnage import Joueur
 from ombrefer.sauvegarde import charger, sauvegarder
@@ -10,23 +11,38 @@ NB_SALLES_MIN = 6
 NB_SALLES_MAX = 9
 
 
+def demander_option(options):
+    """Demande un numéro parmi les options. Renvoie l'option choisie, ou None pour revenir."""
+    print("0. Retour")
+    choix = input("Ton choix : ")
+    while choix != "0" and choix not in options:
+        print("Choix invalide.")
+        choix = input("Ton choix : ")
+    return options.get(choix)
+
+
 def choisir_difficulte():
     """Demande la difficulté et renvoie ses réglages, ou None pour revenir."""
     print("Choix du niveau de difficulté")
     for numero, difficulte in DIFFICULTES.items():
         print(f"{numero}. {difficulte.nom}")
-    print("0. Retour")
-    choix = input("Ton choix : ")
-    while choix != "0" and choix not in DIFFICULTES:
-        print("Choix invalide.")
-        choix = input("Ton choix : ")
-    return DIFFICULTES.get(choix)
+    return demander_option(DIFFICULTES)
 
 
-def creer_heros(nom, difficulte):
-    """Crée un nouveau héros avec les stats de départ de la difficulté."""
-    joueur = Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
+def choisir_classe():
+    """Demande la classe du héros et la renvoie, ou None pour revenir."""
+    print("Choix de la classe")
+    for numero, classe in CLASSES.items():
+        print(f"{numero}. {classe.resume()}")
+    return demander_option(CLASSES)
+
+
+def creer_heros(nom, classe, difficulte):
+    """Crée un nouveau héros avec les stats de départ de sa classe et de la difficulté."""
+    pv = round(difficulte.pv_joueur * classe.multiplicateur_pv)
+    joueur = Joueur(nom, pv, difficulte.attaque_joueur + classe.bonus_attaque)
     joueur.difficulte = difficulte.nom
+    joueur.prendre_classe(classe)
     return joueur
 
 
@@ -96,13 +112,16 @@ def demander_nom():
 
 
 def nouvelle_partie():
-    """Demande le nom et la difficulté, puis lance une partie avec un nouveau héros."""
+    """Demande le nom, la classe et la difficulté, puis lance une partie avec ce héros."""
     nom_hero = demander_nom()
     if nom_hero is None:
         return
+    classe = choisir_classe()
+    if classe is None:
+        return
     difficulte = choisir_difficulte()
     if difficulte is not None:
-        jeu(creer_heros(nom_hero, difficulte), difficulte)
+        jeu(creer_heros(nom_hero, classe, difficulte), difficulte)
 
 
 def partie_chargee():
@@ -112,7 +131,7 @@ def partie_chargee():
         print("Aucune sauvegarde trouvée.")
         return
     print(f"{aldric.nom} est de retour au niveau {aldric.niveau_donjon} ! {aldric}")
-    print(f"Mode : {aldric.difficulte}")
+    print(f"Classe : {aldric.classe.nom} | Mode : {aldric.difficulte}")
     jeu(aldric, difficulte_du_heros(aldric))
 
 

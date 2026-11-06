@@ -35,13 +35,18 @@ def tenter_effet(attaquant, cible):
             print(f"{cible.nom} résiste : {effet}.")
 
 
-def tour_attaque(attaquant, cible):
-    """Fait attaquer la cible : le saignement d'abord, puis le coup et son effet éventuel."""
+def saigner(attaquant):
+    """Applique le saignement de celui qui attaque. Renvoie True s'il y survit."""
     if SAIGNEMENT in attaquant.effets:
         attaquant.perdre_pv(DEGATS_SAIGNEMENT)
         print(f"{attaquant.nom} perd {DEGATS_SAIGNEMENT} PV à cause du {SAIGNEMENT.lower()}.")
-        if not attaquant.est_vivant():
-            return
+    return attaquant.est_vivant()
+
+
+def tour_attaque(attaquant, cible):
+    """Fait attaquer la cible : le saignement d'abord, puis le coup et son effet éventuel."""
+    if not saigner(attaquant):
+        return
     montant_degat, critique = attaquant.attaquer(cible)
     if critique:
         print(f"{attaquant.nom} attaque {cible.nom} : COUP CRITIQUE ! {montant_degat} dégâts.")
@@ -87,14 +92,26 @@ def utiliser_un_objet(joueur):
     return True
 
 
+def texte_speciale(joueur):
+    """Renvoie le nom de l'attaque spéciale et son état de recharge."""
+    if joueur.recharge_speciale > 0:
+        return f"{joueur.classe.nom_special} (dans {joueur.recharge_speciale} tours)"
+    return f"{joueur.classe.nom_special} (prête)"
+
+
 def choix_combat(joueur):
-    """Affiche les actions possibles et renvoie le choix valide du joueur ("1" à "4")."""
-    print(
-        f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})"
-        "   3. Fuir   4. Se défendre"
-    )
+    """Affiche les actions possibles et renvoie le choix valide du joueur."""
+    actions = f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir"
+    choix_valides = ["1", "2", "3"]
+    if joueur.classe is None or joueur.classe.peut_se_defendre:
+        actions += "   4. Se défendre"
+        choix_valides.append("4")
+    if joueur.classe is not None:
+        actions += f"   5. {texte_speciale(joueur)}"
+        choix_valides.append("5")
+    print(actions)
     choix = input("Ton choix : ")
-    while choix not in ("1", "2", "3", "4"):
+    while choix not in choix_valides:
         print("Réponse invalide.")
         choix = input("Ton choix : ")
     return choix
@@ -160,9 +177,40 @@ def action_defendre(joueur, ennemi):
     return None
 
 
+def action_speciale(joueur, ennemi):
+    """Lance l'attaque spéciale si elle est prête. Renvoie "victoire", "annule" ou None."""
+    if joueur.recharge_speciale > 0:
+        print(f"{joueur.classe.nom_special} n'est pas prête.")
+        return "annule"
+    joueur.recharge_speciale = joueur.classe.recharge
+    if not saigner(joueur):
+        return None
+    print(joueur.classe.attaque_speciale(joueur, ennemi))
+    if not ennemi.est_vivant():
+        return "victoire"
+    riposte(ennemi, joueur)
+    return None
+
+
+def jouer_action(joueur, ennemi, boss):
+    """Demande une action et la joue. Renvoie son résultat, ou "annule" si elle est refusée."""
+    match choix_combat(joueur):
+        case "1":
+            return action_attaquer(joueur, ennemi)
+        case "2":
+            return action_objet(joueur, ennemi)
+        case "3":
+            return action_fuir(joueur, ennemi, boss)
+        case "4":
+            return action_defendre(joueur, ennemi)
+        case _:
+            return action_speciale(joueur, ennemi)
+
+
 def tour_joueur(joueur, ennemi, compteur, boss):
     """Joue un tour complet du joueur. Renvoie "victoire", "fuite" ou None."""
     peut_agir = debut_de_tour(joueur)
+    joueur.recharge_speciale = max(0, joueur.recharge_speciale - 1)
     if not joueur.est_vivant():
         return None
     if not peut_agir:
@@ -172,17 +220,9 @@ def tour_joueur(joueur, ennemi, compteur, boss):
         return None
     while True:
         afficher_tour(compteur, joueur, ennemi)
-        match choix_combat(joueur):
-            case "1":
-                return action_attaquer(joueur, ennemi)
-            case "2":
-                if action_objet(joueur, ennemi) != "annule":
-                    return None
-            case "3":
-                return action_fuir(joueur, ennemi, boss)
-            case "4":
-                if action_defendre(joueur, ennemi) != "annule":
-                    return None
+        issue = jouer_action(joueur, ennemi, boss)
+        if issue != "annule":
+            return issue
 
 
 def combat(joueur, ennemi, boss=False):

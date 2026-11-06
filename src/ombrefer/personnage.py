@@ -2,13 +2,17 @@
 
 import random
 
+from ombrefer.classe import classe_par_nom
 from ombrefer.effet import (
+    DEGATS_EN_RAGE,
     DEGATS_POISON,
     DUREES,
     FORCE_AFFAIBLI,
+    FORCE_RAGE,
     AFFAIBLISSEMENT,
     IMMOBILISATION,
     POISON,
+    RAGE,
     REPIT_IMMOBILISATION,
 )
 from ombrefer.objet import objet_depuis_dict
@@ -26,6 +30,7 @@ class Personnage:
         self.pv_max = pv_max
         self.pv = pv_max
         self.attaque = attaque
+        self.chance_critique = 0.2
         self.effets = {}  # pour chaque effet subi, le nombre de tours restants
         self.repit_immobilisation = 0
 
@@ -48,10 +53,13 @@ class Personnage:
         return self.pv - avant
 
     def attaque_actuelle(self):
-        """Renvoie l'attaque du personnage, réduite s'il est affaibli."""
+        """Renvoie l'attaque du personnage, selon ses effets."""
+        attaque = self.attaque
+        if RAGE in self.effets:
+            attaque *= FORCE_RAGE
         if AFFAIBLISSEMENT in self.effets:
-            return max(1, round(self.attaque * FORCE_AFFAIBLI))
-        return self.attaque
+            attaque *= FORCE_AFFAIBLI
+        return max(1, round(attaque))
 
     def effet_inflige(self):
         """Renvoie (effet, chance de l'infliger à chaque coup), ou None s'il n'y en a pas."""
@@ -78,15 +86,19 @@ class Personnage:
             self.perdre_pv(DEGATS_POISON)
         return IMMOBILISATION not in self.effets
 
+    def frapper(self, cible, degats):
+        """Inflige ces dégâts à la cible et renvoie ceux réellement subis."""
+        avant = cible.pv
+        cible.subir_degats(degats)
+        return avant - cible.pv
+
     def attaquer(self, cible):
         """Attaque la cible et renvoie (dégâts réellement infligés, coup critique)."""
         degats = random.randint(1, self.attaque_actuelle())
-        critique = random.random() < 0.2
+        critique = random.random() < self.chance_critique
         if critique:
             degats *= 2
-        avant = cible.pv
-        cible.subir_degats(degats)
-        return avant - cible.pv, critique
+        return self.frapper(cible, degats), critique
 
     def __str__(self):
         effets = f" [{', '.join(self.effets)}]" if self.effets else ""
@@ -104,6 +116,9 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         self.niveau = 1
         self.niveau_donjon = 1
         self.difficulte = None  # nom du mode, choisi une seule fois pour tout le parcours
+        self.classe = None
+        self.chance_esquive = 0.1
+        self.recharge_speciale = 0  # tours de combat avant la prochaine attaque spéciale
         self.piece = 0
         self.defense = 0
         self.arme = None
@@ -117,11 +132,18 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         """Ajoute des pièces d'or au joueur."""
         self.piece += montant
 
+    def prendre_classe(self, classe):
+        """Donne au joueur les chances de critique et d'esquive de sa classe."""
+        self.classe = classe
+        self.chance_critique = classe.chance_critique
+        self.chance_esquive = classe.chance_esquive
+
     def finir_niveau_donjon(self):
-        """Passe au niveau de donjon suivant, après un repos qui rend les PV et guérit tout."""
+        """Passe au niveau de donjon suivant, après un repos qui remet le héros à neuf."""
         self.niveau_donjon += 1
         self.pv = self.pv_max
         self.effets = {}
+        self.recharge_speciale = 0
 
     def payer(self, montant):
         """Retire l'or du joueur s'il en a assez. Renvoie True si le paiement a eu lieu."""
@@ -133,9 +155,9 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     def equiper_arme(self, arme):
         """Porte cette arme : l'ancienne retourne dans l'inventaire."""
         if self.arme is not None:
-            self.attaque -= self.arme.bonus
+            self.attaque -= self.arme.bonus_pour(self.classe)
             self.ramasser_objet(self.arme)
-        self.attaque += arme.bonus
+        self.attaque += arme.bonus_pour(self.classe)
         self.arme = arme
 
     def equiper_armure(self, armure):
@@ -175,9 +197,11 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         return self.defense
 
     def subir_degats(self, degats):
-        """Réduit les dégâts avec la défense, avec 10 % de chances d'esquiver."""
+        """Réduit les dégâts avec la défense, avec une chance de les esquiver."""
         degats_reduits = max(0, degats - self.defense_actuelle())
-        esquive = random.random() < 0.1
+        if RAGE in self.effets:
+            degats_reduits += DEGATS_EN_RAGE
+        esquive = random.random() < self.chance_esquive
         if not esquive:
             super().subir_degats(degats_reduits)
 
@@ -213,6 +237,7 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
             "niveau": self.niveau,
             "niveau_donjon": self.niveau_donjon,
             "difficulte": self.difficulte,
+            "classe": self.classe.nom if self.classe else None,
             "piece": self.piece,
             "defense": self.defense,
             "arme": self.arme.to_dict() if self.arme else None,
@@ -229,6 +254,9 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         joueur.niveau = donnees["niveau"]
         joueur.niveau_donjon = donnees["niveau_donjon"]
         joueur.difficulte = donnees["difficulte"]
+        classe = classe_par_nom(donnees["classe"])
+        if classe is not None:
+            joueur.prendre_classe(classe)
         joueur.piece = donnees["piece"]
         joueur.defense = donnees["defense"]
         arme, armure = donnees["arme"], donnees["armure"]

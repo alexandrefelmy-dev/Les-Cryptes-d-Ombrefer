@@ -8,7 +8,7 @@ def afficher_boutique(joueur, stock):
     print(f"\n=== Boutique === (Or : {joueur.piece})")
     afficher_equipement(joueur)
     for numero, objet in enumerate(stock, start=1):
-        print(f"  {numero}. {objet} : {objet.prix()} or")
+        print(f"  {numero}. {objet.texte_pour(joueur)} : {objet.prix()} or")
     print("  0. Partir")
 
 

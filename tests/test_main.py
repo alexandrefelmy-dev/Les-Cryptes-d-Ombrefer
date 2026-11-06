@@ -10,8 +10,10 @@ import pytest
 
 from outils import chaque_mode, creer_joueur, NEUTRE, saisies
 
+from ombrefer.classe import CLASSES, Mage
 from ombrefer.donjon import adapter_au_niveau, Difficulte, DIFFICULTES
 from ombrefer.main import (
+    choisir_classe,
     choisir_difficulte,
     creer_heros,
     demander_nom,
@@ -85,12 +87,13 @@ def test_difficulte_invalide_redemande():
 
 
 def test_creer_heros_utilise_les_stats_du_mode():
-    """Le héros reçoit les PV et l'attaque du mode, et commence sans défense."""
-    difficulte = Difficulte("Test", 21, 6, 1, 1)
-    joueur = creer_heros("Aldric", difficulte)
-    assert (joueur.nom, joueur.pv, joueur.pv_max) == ("Aldric", 21, 21)
-    assert joueur.attaque == 6
+    """Le héros combine les stats du mode et de sa classe, et commence sans défense."""
+    difficulte = Difficulte("Test", 20, 6, 1, 1)
+    joueur = creer_heros("Aldric", Mage(), difficulte)
+    assert (joueur.nom, joueur.pv, joueur.pv_max) == ("Aldric", 16, 16)
+    assert joueur.attaque == 8
     assert joueur.defense == 0
+    assert joueur.classe.nom == "Mage"
 
 
 def test_le_donjon_suit_le_niveau_de_donjon_du_heros():
@@ -148,6 +151,7 @@ def test_heros_charge_repart_de_son_niveau(capsys):
     joueur.niveau_donjon = 5
     sauvegarder(joueur)
     joueur.difficulte = "Facile"
+    joueur.prendre_classe(CLASSES["1"])
     sauvegarder(joueur)
     with patch("ombrefer.main.explorer", return_value=False):
         partie_chargee()
@@ -168,18 +172,42 @@ def test_de_6_a_9_salles_dans_tous_les_modes(difficulte, capsys):
 
 def test_nouvelle_partie_cree_le_heros_du_mode():
     """Une nouvelle partie utilise les stats du mode choisi."""
-    with saisies("Aldric", "3"), patch("ombrefer.main.jeu") as jeu_simule:
+    with saisies("Aldric", "5", "3"), patch("ombrefer.main.jeu") as jeu_simule:
         nouvelle_partie()
     joueur, difficulte = jeu_simule.call_args.args
     assert difficulte is DIFFICULTES["3"]
     assert joueur.nom == "Aldric"
-    assert joueur.pv_max == difficulte.pv_joueur
+    assert joueur.classe is CLASSES["5"]
+    assert joueur.pv_max == round(difficulte.pv_joueur * CLASSES["5"].multiplicateur_pv)
+
+
+def test_retour_du_choix_de_classe_ne_lance_pas_de_partie():
+    """Taper 0 au choix de la classe ramène au menu, sans demander la difficulté."""
+    with saisies("Aldric", "0"), patch("ombrefer.main.jeu") as jeu_simule:
+        nouvelle_partie()
+    assert not jeu_simule.called
+
+
+def test_classe_invalide_redemandee():
+    """Un numéro de classe invalide est redemandé."""
+    with saisies("9", "2"):
+        assert choisir_classe() is CLASSES["2"]
+
+
+def test_le_menu_presente_chaque_classe(capsys):
+    """Le choix de la classe affiche le nom et la description de chacune."""
+    with saisies("0"):
+        choisir_classe()
+    sortie = capsys.readouterr().out
+    for classe in CLASSES.values():
+        assert classe.resume() in sortie
 
 
 def test_heros_charge_garde_ses_stats():
     """Un héros chargé ne prend pas les stats de départ du mode."""
     joueur = creer_joueur(pv=77, attaque=20)
     joueur.difficulte = "Difficile"
+    joueur.prendre_classe(CLASSES["1"])
     with patch("ombrefer.main.charger", return_value=joueur):
         with patch("ombrefer.main.jeu") as jeu_simule:
             partie_chargee()
@@ -189,7 +217,7 @@ def test_heros_charge_garde_ses_stats():
 
 def test_nouveau_heros_retient_son_mode():
     """Le héros garde le mode choisi à sa création."""
-    assert creer_heros("Aldric", DIFFICULTES["3"]).difficulte == "Difficile"
+    assert creer_heros("Aldric", CLASSES["1"], DIFFICULTES["3"]).difficulte == "Difficile"
 
 
 @pytest.mark.usefixtures("fichier_sauvegarde")
@@ -197,7 +225,7 @@ def test_nouveau_heros_retient_son_mode():
 def test_le_mode_ne_change_pas_au_chargement(numero):
     """Recharger un héros reprend son mode sans jamais le demander."""
     difficulte = DIFFICULTES[numero]
-    sauvegarder(creer_heros("Aldric", difficulte))
+    sauvegarder(creer_heros("Aldric", CLASSES["1"], difficulte))
     with patch("builtins.input", side_effect=AssertionError("question interdite")):
         with patch("ombrefer.main.jeu") as jeu_simule:
             partie_chargee()
@@ -207,7 +235,7 @@ def test_le_mode_ne_change_pas_au_chargement(numero):
 @pytest.mark.usefixtures("fichier_sauvegarde")
 def test_le_mode_survit_a_plusieurs_sauvegardes():
     """Le mode reste le même d'une sauvegarde à l'autre au fil des niveaux."""
-    joueur = creer_heros("Aldric", DIFFICULTES["3"])
+    joueur = creer_heros("Aldric", CLASSES["1"], DIFFICULTES["3"])
     with patch("ombrefer.main.explorer", return_value=True), saisies("o", "o", "o", "n"):
         jeu(joueur, DIFFICULTES["3"])
     charge = charger()

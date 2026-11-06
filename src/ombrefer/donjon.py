@@ -6,7 +6,18 @@ import sys
 from dataclasses import dataclass, replace
 
 from ombrefer.boutique import visiter_boutique
-from ombrefer.objet import Armure, Potion, Arme, Remede
+from ombrefer.objet import (
+    Arme,
+    Armure,
+    BATON,
+    DAGUE,
+    EPEE,
+    FAUX,
+    HACHE,
+    LANCE,
+    Potion,
+    Remede,
+)
 from ombrefer.combat import combat, debut_de_tour, utiliser_un_objet
 from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
 from ombrefer.personnage import Ennemi
@@ -34,37 +45,52 @@ MODELES_ENNEMIS = [
     ("Démon des cryptes", 40, 17, 60, SAIGNEMENT, 4, 6),
 ]
 
-# Chaque boss : (nom, PV, attaque, récompense, son effet), puis son arme (nom, bonus, effet).
+# Chaque boss : (nom, PV, attaque, récompense, son effet), puis son arme
+# (nom, bonus, effet, famille).
 MODELES_BOSS = [
-    (("Golem d'Ombrefer", 80, 8, 40, IMMOBILISATION), ("Poing de fer", 8, IMMOBILISATION)),
-    (("Spectre de Valbrume", 30, 16, 60, POISON), ("Lame spectrale", 16, POISON)),
-    (("Roi liche", 50, 12, 50, AFFAIBLISSEMENT), ("Epée du roi liche", 14, AFFAIBLISSEMENT)),
-    (("Seigneur vampire", 55, 12, 80, SAIGNEMENT), ("Croc de sang", 12, SAIGNEMENT)),
+    (("Golem d'Ombrefer", 80, 8, 40, IMMOBILISATION), ("Poing de fer", 8, IMMOBILISATION, LANCE)),
+    (("Spectre de Valbrume", 30, 16, 60, POISON), ("Lame spectrale", 16, POISON, FAUX)),
+    (
+        ("Roi liche", 50, 12, 50, AFFAIBLISSEMENT),
+        ("Epée du roi liche", 14, AFFAIBLISSEMENT, EPEE),
+    ),
+    (("Seigneur vampire", 55, 12, 80, SAIGNEMENT), ("Croc de sang", 12, SAIGNEMENT, DAGUE)),
 ]
 
 # Boss supplémentaires : (premier niveau de donjon où il apparaît, stats, arme).
 MODELES_BOSS_AVANCES = [
-    (3, ("Reine des araignées", 90, 13, 90, POISON), ("Dard de la reine", 20, POISON)),
-    (5, ("Dragon d'os", 110, 15, 120, IMMOBILISATION), ("Griffe d'os", 26, IMMOBILISATION)),
+    (3, ("Reine des araignées", 90, 13, 90, POISON), ("Dard de la reine", 20, POISON, DAGUE)),
+    (
+        5,
+        ("Dragon d'os", 110, 15, 120, IMMOBILISATION),
+        ("Griffe d'os", 26, IMMOBILISATION, HACHE),
+    ),
     (
         7,
         ("Seigneur d'Ombrefer", 130, 17, 160, AFFAIBLISSEMENT),
-        ("Glaive noir", 34, AFFAIBLISSEMENT),
+        ("Glaive noir", 34, AFFAIBLISSEMENT, EPEE),
     ),
 ]
 
-# Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles, effet infligé).
+# Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles, effet infligé, famille).
 MODELES_ARMES = [
-    ("Dague empoisonnée", 2, 56, POISON),
-    ("Gourdin noueux", 3, 42, None),
-    ("Epée rouillée", 4, 32, None),
-    ("Hache de garde", 6, 24, SAIGNEMENT),
-    ("Masse d'armes", 8, 18, IMMOBILISATION),
-    ("Lance d'acier", 11, 12, None),
-    ("Sabre runique", 15, 8, AFFAIBLISSEMENT),
-    ("Epée de l'aube", 20, 4, None),
-    ("Faux des ombres", 28, 3, SAIGNEMENT),
-    ("Lame d'Ombrefer", 50, 1, POISON),
+    ("Dague empoisonnée", 2, 32, POISON, DAGUE),
+    ("Lance de chasse", 3, 25, None, LANCE),
+    ("Epée rouillée", 4, 22, None, EPEE),
+    ("Bâton de frêne", 5, 19, None, BATON),
+    ("Hache de garde", 6, 17, SAIGNEMENT, HACHE),
+    ("Serpe funèbre", 7, 15, None, FAUX),
+    ("Lame sournoise", 8, 13, SAIGNEMENT, DAGUE),
+    ("Lance d'acier", 9, 11, None, LANCE),
+    ("Sabre runique", 11, 10, AFFAIBLISSEMENT, EPEE),
+    ("Bâton des arcanes", 13, 8, IMMOBILISATION, BATON),
+    ("Hache de guerre", 15, 7, IMMOBILISATION, HACHE),
+    ("Faux des ombres", 17, 6, SAIGNEMENT, FAUX),
+    ("Croc de l'ombre", 20, 5, POISON, DAGUE),
+    ("Epée de l'aube", 24, 4, None, EPEE),
+    ("Sceptre du crépuscule", 28, 3, AFFAIBLISSEMENT, BATON),
+    ("Hache du carnage", 33, 2, SAIGNEMENT, HACHE),
+    ("Faux d'Ombrefer", 50, 1, POISON, FAUX),
 ]
 
 # Chaque armure : (nom, bonus de défense, chances de tomber sur 1000 salles, effet bloqué).
@@ -128,19 +154,19 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
 
 DIFFICULTES = {
     "1": Difficulte(
-        "Facile", 41, 8, 1.15, 1.0,
+        "Facile", 35, 8, 1.23, 1.0,
         gain_ennemis=1.0, chance_piege=0.05, chance_potion=0.55, rarete_armes=0.0, nb_boss=3,
-        force_par_niveau=0.53, courbe_force=0.5,
+        force_par_niveau=0.56, courbe_force=0.5,
     ),
     "2": Difficulte(
-        "Intermédiaire", 33, 8, 1.25, 1.5,
+        "Intermédiaire", 28, 8, 1.36, 1.5,
         gain_ennemis=1.25, chance_piege=0.1, chance_potion=0.5, rarete_armes=0.1, nb_boss=3,
-        force_par_niveau=0.82, courbe_force=0.42,
+        force_par_niveau=0.85, courbe_force=0.42,
     ),
     "3": Difficulte(
-        "Difficile", 24, 7, 1.35, 2.0,
+        "Difficile", 21, 7, 1.5, 2.0,
         gain_ennemis=1.5, chance_piege=0.2, chance_potion=0.4, rarete_armes=0.2, nb_boss=4,
-        force_par_niveau=1.14, courbe_force=0.35,
+        force_par_niveau=1.2, courbe_force=0.35,
     ),
 }
 
@@ -215,8 +241,8 @@ def tirer_modele(modeles, difficulte):
 
 def creer_arme(difficulte):
     """Crée une arme tirée au hasard parmi MODELES_ARMES."""
-    nom, bonus, _, effet = tirer_modele(MODELES_ARMES, difficulte)
-    return Arme(nom, bonus, effet)
+    nom, bonus, _, effet, famille = tirer_modele(MODELES_ARMES, difficulte)
+    return Arme(nom, bonus, effet, famille)
 
 
 def creer_armure(difficulte):
@@ -289,9 +315,8 @@ def boss_possibles(difficulte):
 
 def creer_salle_boss(donjon, difficulte):
     """Crée la salle finale : la difficulté choisit le boss, sa force et ses récompenses."""
-    (nom, pv, attaque, recompense, effet), (nom_arme, bonus, effet_arme) = random.choice(
-        boss_possibles(difficulte)
-    )
+    (nom, pv, attaque, recompense, effet), arme = random.choice(boss_possibles(difficulte))
+    nom_arme, bonus, effet_arme, famille = arme
     force = difficulte.force_ennemis
     gain = difficulte.recompense_boss
     return Salle(
@@ -300,7 +325,7 @@ def creer_salle_boss(donjon, difficulte):
             nom, ajuster(pv, force), ajuster(attaque, force), ajuster(recompense, gain),
             effet, CHANCE_EFFET_BOSS,
         ),
-        Arme(nom_arme, ajuster(bonus, gain), effet_arme),
+        Arme(nom_arme, ajuster(bonus, gain), effet_arme, famille),
         random.random() < difficulte.chance_piege,
         boss=True,
     )
@@ -368,7 +393,7 @@ def affronter_ennemi(joueur, ennemi, boss=False):
 def ramasser_butin(joueur, butin):
     """Ajoute le butin à l'inventaire du joueur."""
     joueur.ramasser_objet(butin)
-    print(f"\n{joueur.nom} trouve : {butin}")
+    print(f"\n{joueur.nom} trouve : {butin.texte_pour(joueur)}")
 
 
 def traverser_salle(joueur, salle):
