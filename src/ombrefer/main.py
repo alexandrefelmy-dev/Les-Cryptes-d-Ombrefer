@@ -5,10 +5,19 @@ import random
 from ombrefer.classe import CLASSES
 from ombrefer.donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
 from ombrefer.personnage import Joueur
-from ombrefer.sauvegarde import charger, sauvegarder
+from ombrefer.sauvegarde import charger, effacer_sauvegarde, sauvegarder
+from ombrefer.succes import (
+    MODE_ULTIME,
+    SUCCES,
+    afficher_succes,
+    debloquer,
+    noter_record_enfer,
+    texte_record,
+)
 
 NB_SALLES_MIN = 6
 NB_SALLES_MAX = 9
+NIVEAU_FINAL = 10  # vaincre son boss termine le jeu
 
 
 def demander_option(options):
@@ -25,7 +34,8 @@ def choisir_difficulte():
     """Demande la difficulté et renvoie ses réglages, ou None pour revenir."""
     print("Choix du niveau de difficulté")
     for numero, difficulte in DIFFICULTES.items():
-        print(f"{numero}. {difficulte.nom}")
+        avertissement = " (comme Difficile, mais la mort efface le héros)"
+        print(f"{numero}. {difficulte.nom}{avertissement if difficulte.mort_definitive else ''}")
     return demander_option(DIFFICULTES)
 
 
@@ -52,11 +62,11 @@ def difficulte_du_heros(joueur):
 
 
 def choix_menu_principal():
-    """Affiche le menu principal et renvoie le choix du joueur ("1", "2" ou "3")."""
+    """Affiche le menu principal et renvoie le choix du joueur ("1", "2", "3" ou "4")."""
     print("\n=== Les Cryptes d'Ombrefer ===")
-    print("1. Nouvelle partie\n2. Charger un héros\n3. Quitter")
+    print("1. Nouvelle partie\n2. Charger un héros\n3. Succès\n4. Quitter")
     choix = input("Ton choix : ")
-    while choix not in ("1", "2", "3"):
+    while choix not in ("1", "2", "3", "4"):
         print("Choix invalide.")
         choix = input("Ton choix : ")
     return choix
@@ -71,8 +81,39 @@ def demander_oui_non(question):
     return choix == "o"
 
 
+def terminer_le_jeu(joueur, niveau):
+    """Raconte la fin du jeu et donne au héros le succès de son mode."""
+    nom_succes, recit = SUCCES[joueur.difficulte]
+    print(f"\nVICTOIRE ! {joueur.nom} termine le niveau {niveau}, le dernier des cryptes.")
+    print(f"\n{recit}")
+    print(f"\n=== Fin du jeu : {joueur.nom}, {joueur.classe.nom}, mode {joueur.difficulte} ===")
+    if debloquer(joueur.difficulte):
+        print(f"Succès obtenu : {nom_succes} !")
+        if joueur.difficulte == MODE_ULTIME:
+            print("C'est le succès ultime des Cryptes d'Ombrefer.")
+    else:
+        print(f"Tu possèdes déjà le succès {nom_succes}.")
+
+
+def entrer_en_enfer(joueur, niveau):
+    """Note le record et consomme la sauvegarde : seule une victoire permet d'en refaire une.
+
+    Sans cela, quitter le jeu en plein combat perdu éviterait la mort. Seule la sauvegarde de ce
+    héros est touchée : celui qui n'a jamais sauvegardé laisse le fichier d'un autre héros.
+    """
+    noter_record_enfer(joueur, niveau)
+    if joueur.a_une_sauvegarde:
+        effacer_sauvegarde()
+        joueur.a_une_sauvegarde = False
+    print("Mode Enfer : aucun retour possible. Mourir ou quitter ici efface ton héros.")
+
+
 def jouer_niveau(joueur, difficulte):
-    """Lance le niveau de donjon du héros. Renvoie True s'il veut continuer après sa victoire."""
+    """Lance le niveau de donjon du héros. Renvoie True s'il veut continuer après sa victoire.
+
+    La partie s'arrête là après le dernier niveau. Un héros d'une ancienne sauvegarde, déjà plus
+    bas que le dernier niveau, termine le jeu à sa prochaine victoire.
+    """
     niveau = joueur.niveau_donjon
     nb_salles = random.randint(NB_SALLES_MIN, NB_SALLES_MAX)
     crypte = generer_donjon(nb_salles, adapter_au_niveau(difficulte, niveau))
@@ -80,8 +121,18 @@ def jouer_niveau(joueur, difficulte):
         f"{joueur.nom} entre dans les Cryptes d'Ombrefer, niveau {niveau}..."
         f" ({len(crypte)} salles)"
     )
+    if niveau >= NIVEAU_FINAL:
+        print("Aucun escalier ne descend plus bas : c'est le dernier niveau.")
+    if difficulte.mort_definitive:
+        entrer_en_enfer(joueur, niveau)
     if not explorer(joueur, crypte):
         print(f"{joueur.nom} a péri au niveau {niveau}.")
+        if difficulte.mort_definitive:
+            print("Le mode Enfer ne pardonne pas : ce héros est effacé pour toujours.")
+            print(texte_record())
+        return False
+    if niveau >= NIVEAU_FINAL:
+        terminer_le_jeu(joueur, niveau)
         return False
     joueur.finir_niveau_donjon()
     print(
@@ -145,5 +196,7 @@ def main():
             case "2":
                 partie_chargee()
             case "3":
+                afficher_succes()
+            case "4":
                 print("À bientôt, aventurier !")
                 break

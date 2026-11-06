@@ -6,6 +6,7 @@ import pytest
 
 from outils import (
     chaque_mode,
+    MODES_DE_BASE,
     creer_joueur,
     donjon_sans_danger,
     hasard,
@@ -72,14 +73,14 @@ def test_retour_de_la_pause():
 
 def test_les_ennemis_se_renforcent_avec_la_difficulte():
     """La force des ennemis monte à chaque mode."""
-    forces = [difficulte.force_ennemis for difficulte in DIFFICULTES.values()]
+    forces = [difficulte.force_ennemis for difficulte in MODES_DE_BASE]
     assert forces == sorted(set(forces))
 
 
 def test_le_heros_s_affaiblit_avec_la_difficulte():
     """Chaque mode retire des PV au héros, et le plus dur retire aussi de l'attaque."""
-    pv = [difficulte.pv_joueur for difficulte in DIFFICULTES.values()]
-    attaques = [difficulte.attaque_joueur for difficulte in DIFFICULTES.values()]
+    pv = [difficulte.pv_joueur for difficulte in MODES_DE_BASE]
+    attaques = [difficulte.attaque_joueur for difficulte in MODES_DE_BASE]
     assert pv == sorted(set(pv), reverse=True)
     assert attaques == sorted(attaques, reverse=True)
     assert attaques[0] > attaques[-1]
@@ -87,7 +88,7 @@ def test_le_heros_s_affaiblit_avec_la_difficulte():
 
 def test_les_recompenses_du_boss_montent_avec_la_difficulte():
     """Le multiplicateur des récompenses du boss monte à chaque mode."""
-    gains = [difficulte.recompense_boss for difficulte in DIFFICULTES.values()]
+    gains = [difficulte.recompense_boss for difficulte in MODES_DE_BASE]
     assert gains == sorted(set(gains))
 
 
@@ -144,13 +145,13 @@ def test_le_gain_d_ennemi_ne_change_pas_le_boss():
 
 def test_les_gains_montent_avec_la_difficulte():
     """Les ennemis normaux rapportent plus à chaque mode."""
-    gains = [difficulte.gain_ennemis for difficulte in DIFFICULTES.values()]
+    gains = [difficulte.gain_ennemis for difficulte in MODES_DE_BASE]
     assert gains == sorted(set(gains))
 
 
 def test_les_pieges_augmentent_avec_la_difficulte():
     """Les pièges sont plus fréquents à chaque mode."""
-    chances = [difficulte.chance_piege for difficulte in DIFFICULTES.values()]
+    chances = [difficulte.chance_piege for difficulte in MODES_DE_BASE]
     assert chances == sorted(set(chances))
 
 
@@ -170,7 +171,7 @@ def test_salle_boss_utilise_la_chance_de_piege():
 
 def test_les_potions_diminuent_avec_la_difficulte():
     """Les potions sont moins fréquentes à chaque mode."""
-    chances = [difficulte.chance_potion for difficulte in DIFFICULTES.values()]
+    chances = [difficulte.chance_potion for difficulte in MODES_DE_BASE]
     assert chances == sorted(set(chances), reverse=True)
 
 
@@ -208,7 +209,7 @@ def test_ordre_de_rarete_des_armes_dans_tous_les_modes(difficulte):
 def test_armes_rares_plus_frequentes_quand_c_est_plus_dur():
     """La meilleure arme a une plus grosse part des poids à chaque mode."""
     parts = []
-    for difficulte in DIFFICULTES.values():
+    for difficulte in MODES_DE_BASE:
         with patch("random.choices", return_value=[MODELES_ARMES[0]]) as tirage:
             creer_arme(difficulte)
         poids = tirage.call_args.kwargs["weights"]

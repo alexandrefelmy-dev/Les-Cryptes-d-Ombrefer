@@ -129,6 +129,7 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         self.garde_utilisee = False
         self.bonus_pacte = 0  # attaque gagnée ou perdue jusqu'à la fin du niveau de donjon
         self.allie = False  # le prisonnier libéré attend le boss de ce niveau
+        self.a_une_sauvegarde = False  # le fichier de sauvegarde contient bien ce héros
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""

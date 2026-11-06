@@ -162,6 +162,7 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
     force_par_niveau: float = 0.5  # palier de force des ennemis au niveau 2 du donjon
     courbe_force: float = 0.5  # de 0 à 1 : plus c'est bas, plus la force ralentit ensuite
     niveau_donjon: int = 1
+    mort_definitive: bool = False  # la mort efface le héros, sans retour à sa sauvegarde
 
 
 DIFFICULTES = {
@@ -181,6 +182,8 @@ DIFFICULTES = {
         force_par_niveau=1.2, courbe_force=0.35,
     ),
 }
+# L'Enfer reprend tous les réglages du mode Difficile : seule la mort change.
+DIFFICULTES["4"] = replace(DIFFICULTES["3"], nom="Enfer", mort_definitive=True)
 
 
 @dataclass

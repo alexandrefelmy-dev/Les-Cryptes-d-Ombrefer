@@ -33,7 +33,9 @@ python -m pytest
 ## 🎮 Fonctionnalités actuelles
 
 - 5 classes de héros avec leurs stats et une attaque spéciale à recharge : Guerrier, Voleur, Mage, Nécromancien et Berserker
-- Niveaux de donjon qui s'enchaînent sans fin, de 6 à 9 salles générées au hasard : ennemis, butin et pièges
+- 10 niveaux de donjon de 6 à 9 salles générées au hasard : ennemis, butin et pièges
+- Une fin du jeu au niveau 10, et un succès différent à gagner dans chaque mode de difficulté
+- Mode Enfer : la difficulté du mode Difficile, mais la mort efface le héros, avec un record du plus haut niveau atteint et un succès ultime
 - Combat au tour par tour contre 16 types d'ennemis, dont 7 qui n'arrivent qu'après le premier niveau
 - Les ennemis sans effet compensent avec de meilleures stats
 - 4 boss de fin de donjon avec chacun leur propre effet, et 3 boss supplémentaires à partir des niveaux 3, 5 et 7
@@ -79,7 +81,7 @@ Chaque famille favorite compte trois armes, et les deux lances sont neutres pour
 
 ### Niveaux de donjon
 
-Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros se repose (tous ses PV, plus aucun effet), peut être sauvegardé, puis descend au niveau suivant. À chaque niveau :
+Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros se repose (tous ses PV, plus aucun effet), peut être sauvegardé, puis descend au niveau suivant. Le niveau 10 est le dernier : vaincre son boss termine le jeu. À chaque niveau :
 
 - les ennemis et les boss sont plus forts, surtout au niveau 2, pour compenser l'arme du boss gagnée par le héros
 - les ennemis dangereux tombent plus souvent et de nouveaux ennemis apparaissent
@@ -88,6 +90,30 @@ Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros s
 Le fichier `sauvegarde.sav` contient `niveau_donjon`, le niveau où le héros repartira, ainsi que `difficulte` et `classe`. Le mode et la classe choisis à la création du héros ne peuvent plus changer : ils sont repris automatiquement au chargement.
 
 Ce fichier est compressé et signé : il n'est pas lisible, et le jeu refuse de le charger s'il a été modifié.
+
+### Fin du jeu et succès
+
+Vaincre le boss du niveau 10 raconte la fin du jeu propre au mode choisi et débloque son succès. La partie s'arrête alors, sans proposer de sauvegarde ni de niveau 11. La sauvegarde précédente reste chargeable.
+
+| Mode | Succès |
+| --- | --- |
+| **Facile** | Rescapé d'Ombrefer |
+| **Intermédiaire** | Briseur d'Ombrefer |
+| **Difficile** | Légende de Valbrume |
+| **Enfer** | Immortel d'Ombrefer, le succès ultime |
+
+Le choix 3 du menu principal affiche les succès obtenus et le record du mode Enfer. Ils sont gardés dans `succes.sav`, compressé et signé comme la sauvegarde : ils restent acquis après la mort du héros, et même si une autre sauvegarde remplace la sienne.
+
+### Mode Enfer
+
+Le mode Enfer reprend tous les réglages du mode Difficile. La seule différence est qu'il n'y a pas de seconde chance :
+
+- la mort efface le héros, sans retour possible à sa dernière sauvegarde
+- entrer dans un niveau consomme la sauvegarde : quitter le jeu en plein niveau revient donc à mourir
+- le héros peut toujours être sauvegardé entre deux niveaux, pour reprendre plus tard
+- la sauvegarde d'un autre héros n'est jamais touchée, sauf si ce héros d'Enfer sauvegarde par-dessus
+
+Le plus haut niveau atteint est retenu avec le nom et la classe du héros, dès qu'il entre dans ce niveau. Terminer ce mode donne le succès ultime.
 
 ### Ennemis
 
@@ -166,7 +192,7 @@ Le code du jeu est dans `src/ombrefer/` :
 | Fichier | Contenu |
 | --- | --- |
 | `__main__.py` | Point d'entrée de `python -m ombrefer` |
-| `main.py` | Menu principal, choix de la difficulté et lancement d'une partie |
+| `main.py` | Menu principal, choix de la difficulté, lancement d'une partie et fin du jeu |
 | `personnage.py` | Classes `Personnage`, `Joueur` (avec inventaire) et `Ennemi` |
 | `classe.py` | Classes de héros : stats et attaques spéciales |
 | `effet.py` | Noms et réglages des effets |
@@ -175,7 +201,8 @@ Le code du jeu est dans `src/ombrefer/` :
 | `donjon.py` | Modes de difficulté, génération des salles et exploration |
 | `boutique.py` | Affichage de la boutique et achats |
 | `evenement.py` | Événements hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée |
-| `sauvegarde.py` | Sauvegarde et chargement du héros dans un fichier compressé et signé |
+| `succes.py` | Succès de fin de jeu, un par mode de difficulté, et record du mode Enfer |
+| `sauvegarde.py` | Sauvegarde, chargement et effacement du héros, dans un fichier compressé et signé |
 
 Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
 

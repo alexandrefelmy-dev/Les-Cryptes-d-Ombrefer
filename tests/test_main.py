@@ -20,10 +20,12 @@ from ombrefer.main import (
     demander_oui_non,
     jeu,
     main,
+    NIVEAU_FINAL,
     nouvelle_partie,
     partie_chargee,
 )
-from ombrefer.sauvegarde import charger, sauvegarder
+from ombrefer.sauvegarde import charger, effacer_sauvegarde, sauvegarder
+from ombrefer.succes import SUCCES, modes_reussis
 
 
 # --- Option 0 (retour) ---
@@ -62,7 +64,7 @@ def test_un_nom_commencant_par_zero_reste_valide():
 
 def test_retours_depuis_le_menu_principal(capsys):
     """Le joueur revient du nom, puis de la difficulté, puis quitte."""
-    with saisies("1", "0", "1", "Aldric", "0", "3"):
+    with saisies("1", "0", "1", "Aldric", "0", "4"):
         main()
     sortie = capsys.readouterr().out
     assert sortie.count("=== Les Cryptes d'Ombrefer ===") == 3
@@ -74,7 +76,7 @@ def test_retours_depuis_le_menu_principal(capsys):
 
 
 @pytest.mark.parametrize("numero", DIFFICULTES)
-def test_les_trois_modes_sont_proposes(numero):
+def test_les_quatre_modes_sont_proposes(numero):
     """Chaque numéro du menu renvoie le bon mode."""
     with saisies(numero):
         assert choisir_difficulte() is DIFFICULTES[numero]
@@ -164,7 +166,7 @@ def test_de_6_a_9_salles_dans_tous_les_modes(difficulte, capsys):
     tailles = set()
     for _ in range(200):
         with patch("ombrefer.main.explorer", return_value=False):
-            jeu(creer_joueur(), difficulte)
+            jeu(creer_heros("Aldric", CLASSES["1"], difficulte), difficulte)
         sortie = capsys.readouterr().out
         tailles.add(int(sortie.split("(")[1].split()[0]))
     assert tailles == {6, 7, 8, 9}
@@ -252,7 +254,7 @@ def test_chargement_sans_sauvegarde():
 
 
 def test_lancement_avec_python_m(tmp_path):
-    """python -m ombrefer ouvre le vrai menu, et le choix 3 quitte le jeu."""
+    """python -m ombrefer ouvre le vrai menu, et le choix 4 quitte le jeu."""
     environnement = {
         **os.environ,
         "PYTHONPATH": str(Path(__file__).parents[1] / "src"),
@@ -260,7 +262,7 @@ def test_lancement_avec_python_m(tmp_path):
     }
     resultat = subprocess.run(
         [sys.executable, "-m", "ombrefer"],
-        input="3\n",
+        input="4\n",
         capture_output=True,
         encoding="utf-8",
         cwd=tmp_path,
@@ -269,3 +271,258 @@ def test_lancement_avec_python_m(tmp_path):
     )
     assert "=== Les Cryptes d'Ombrefer ===" in resultat.stdout
     assert "À bientôt" in resultat.stdout
+
+
+# --- Fin du jeu ---
+
+
+def heros_final(mode="Facile", niveau=NIVEAU_FINAL):
+    """Crée un héros de ce mode, prêt à jouer ce niveau de donjon."""
+    difficulte = next(d for d in DIFFICULTES.values() if d.nom == mode)
+    joueur = creer_heros("Aldric", CLASSES["1"], difficulte)
+    joueur.niveau_donjon = niveau
+    return joueur, difficulte
+
+
+def test_le_dernier_niveau_est_le_niveau_10():
+    """Le jeu se termine au niveau 10."""
+    assert NIVEAU_FINAL == 10
+
+
+def test_le_dernier_niveau_est_annonce(capsys):
+    """Le joueur sait qu'il entre dans le dernier niveau, et pas avant."""
+    joueur, difficulte = heros_final(niveau=NIVEAU_FINAL - 1)
+    with patch("ombrefer.main.explorer", side_effect=[True, False]):
+        with saisies("n", "o"):
+            jeu(joueur, difficulte)
+    sortie = capsys.readouterr().out
+    assert sortie.count("c'est le dernier niveau") == 1
+    assert sortie.index("c'est le dernier niveau") > sortie.index(f"niveau {NIVEAU_FINAL}...")
+
+
+@pytest.mark.parametrize("mode", SUCCES)
+def test_finir_le_jeu_donne_le_succes_du_mode(mode, capsys):
+    """Vaincre le dernier niveau raconte la fin de ce mode et donne son succès, sans les autres."""
+    joueur, difficulte = heros_final(mode)
+    with patch("ombrefer.main.explorer", return_value=True):
+        jeu(joueur, difficulte)  # aucune saisie : ni sauvegarde, ni descente proposée
+    sortie = capsys.readouterr().out
+    nom, recit = SUCCES[mode]
+    assert f"Succès obtenu : {nom} !" in sortie
+    assert recit in sortie
+    assert modes_reussis() == [mode]
+
+
+def test_les_succes_des_modes_sont_tous_differents():
+    """Chaque mode a son propre nom de succès et son propre récit."""
+    assert len(SUCCES) == len(DIFFICULTES)
+    assert {difficulte.nom for difficulte in DIFFICULTES.values()} == set(SUCCES)
+    assert len({nom for nom, _ in SUCCES.values()}) == len(SUCCES)
+    assert len({recit for _, recit in SUCCES.values()}) == len(SUCCES)
+
+
+def test_le_jeu_s_arrete_apres_le_dernier_niveau():
+    """Aucun niveau 11 n'est lancé après la victoire."""
+    joueur, difficulte = heros_final()
+    with patch("ombrefer.main.explorer", return_value=True) as explorer:
+        jeu(joueur, difficulte)
+    assert explorer.call_count == 1
+
+
+def test_mourir_au_dernier_niveau_ne_donne_pas_de_succes():
+    """Seule la victoire compte."""
+    joueur, difficulte = heros_final()
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, difficulte)
+    assert modes_reussis() == []
+
+
+def test_finir_avant_le_dernier_niveau_ne_donne_pas_de_succes():
+    """L'avant-dernier niveau se termine comme les autres."""
+    joueur, difficulte = heros_final(niveau=NIVEAU_FINAL - 1)
+    with patch("ombrefer.main.explorer", return_value=True):
+        with saisies("n", "n"):
+            jeu(joueur, difficulte)
+    assert joueur.niveau_donjon == NIVEAU_FINAL
+    assert modes_reussis() == []
+
+
+def test_refaire_le_jeu_ne_redonne_pas_le_succes(capsys):
+    """Un succès déjà acquis est signalé, sans être compté deux fois."""
+    for _ in range(2):
+        joueur, difficulte = heros_final()
+        with patch("ombrefer.main.explorer", return_value=True):
+            jeu(joueur, difficulte)
+    sortie = capsys.readouterr().out
+    assert sortie.count("Succès obtenu") == 1
+    assert "Tu possèdes déjà le succès" in sortie
+    assert modes_reussis() == ["Facile"]
+
+
+def test_heros_d_une_ancienne_partie_trop_bas():
+    """Un héros sauvegardé plus bas que le dernier niveau finit le jeu à sa prochaine victoire."""
+    joueur, difficulte = heros_final(niveau=NIVEAU_FINAL + 3)
+    with patch("ombrefer.main.explorer", return_value=True) as explorer:
+        jeu(joueur, difficulte)
+    assert explorer.call_count == 1
+    assert modes_reussis() == ["Facile"]
+
+
+def test_menu_principal_montre_les_succes(capsys):
+    """Le choix 3 affiche les succès et revient au menu, le choix 4 quitte."""
+    with saisies("3", "4"):
+        main()
+    sortie = capsys.readouterr().out
+    assert "=== Succès ===" in sortie
+    assert sortie.count("=== Les Cryptes d'Ombrefer ===") == 2
+    assert "À bientôt" in sortie
+
+
+# --- Mode Enfer ---
+
+
+def heros_enfer(niveau=1):
+    """Crée un héros du mode Enfer, à ce niveau de donjon."""
+    return heros_final("Enfer", niveau)
+
+
+def test_l_enfer_reprend_exactement_le_mode_difficile():
+    """Seuls le nom et la mort définitive séparent l'Enfer du mode Difficile."""
+    difficile, enfer = vars(DIFFICULTES["3"]).copy(), vars(DIFFICULTES["4"]).copy()
+    assert enfer.pop("nom") == "Enfer"
+    assert enfer.pop("mort_definitive") is True
+    difficile.pop("nom")
+    assert difficile.pop("mort_definitive") is False
+    assert enfer == difficile
+
+
+def test_seul_l_enfer_efface_le_heros():
+    """Les trois autres modes gardent leur sauvegarde."""
+    assert [mode.nom for mode in DIFFICULTES.values() if mode.mort_definitive] == ["Enfer"]
+
+
+def test_le_menu_previent_du_danger_de_l_enfer(capsys):
+    """Le joueur sait ce qui l'attend avant de choisir."""
+    with saisies("0"):
+        choisir_difficulte()
+    assert "4. Enfer (comme Difficile, mais la mort efface le héros)" in capsys.readouterr().out
+
+
+def test_mourir_en_enfer_efface_la_sauvegarde(fichier_sauvegarde, capsys):
+    """Après la mort, le héros ne peut plus être chargé."""
+    joueur, difficulte = heros_enfer()
+    sauvegarder(joueur)
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, difficulte)
+    assert not fichier_sauvegarde.exists()
+    sortie = capsys.readouterr().out
+    assert "effacé pour toujours" in sortie
+    assert "Record en mode Enfer : niveau 1 (Aldric, Guerrier)" in sortie
+    partie_chargee()
+    assert "Aucune sauvegarde trouvée." in capsys.readouterr().out
+
+
+def test_mourir_apres_un_chargement_efface_la_sauvegarde(fichier_sauvegarde):
+    """Un héros chargé puis mort ne revient pas non plus."""
+    joueur, difficulte = heros_enfer(niveau=4)
+    sauvegarder(joueur)
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(charger(), difficulte)
+    assert not fichier_sauvegarde.exists()
+
+
+def test_sauvegarder_puis_mourir_au_niveau_suivant(fichier_sauvegarde):
+    """La sauvegarde faite pendant la partie disparaît aussi à la mort."""
+    joueur, difficulte = heros_enfer()
+    with patch("ombrefer.main.explorer", side_effect=[True, False]):
+        with saisies("o", "o"):
+            jeu(joueur, difficulte)
+    assert not fichier_sauvegarde.exists()
+
+
+def test_quitter_en_plein_niveau_ne_sauve_pas_le_heros(fichier_sauvegarde):
+    """Fermer le jeu pendant un niveau revient à mourir : la sauvegarde est déjà consommée."""
+    joueur, difficulte = heros_enfer()
+    sauvegarder(joueur)
+    with patch("ombrefer.main.explorer", side_effect=KeyboardInterrupt):
+        with pytest.raises(KeyboardInterrupt):
+            jeu(joueur, difficulte)
+    assert not fichier_sauvegarde.exists()
+
+
+def test_la_sauvegarde_d_un_autre_heros_est_protegee(fichier_sauvegarde):
+    """Un héros d'Enfer jamais sauvegardé ne touche pas au fichier d'un autre héros."""
+    autre, _ = heros_final("Facile", niveau=6)
+    sauvegarder(autre)
+    joueur, difficulte = heros_enfer()
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, difficulte)
+    assert fichier_sauvegarde.exists()
+    assert charger().difficulte == "Facile"
+
+
+def test_refuser_de_descendre_garde_le_heros_d_enfer(fichier_sauvegarde):
+    """Sauvegarder puis s'arrêter entre deux niveaux reste permis : le héros n'a pas péri."""
+    joueur, difficulte = heros_enfer()
+    with patch("ombrefer.main.explorer", return_value=True):
+        with saisies("o", "n"):
+            jeu(joueur, difficulte)
+    assert fichier_sauvegarde.exists()
+    assert charger().niveau_donjon == 2
+
+
+@pytest.mark.parametrize("mode", ["Facile", "Intermédiaire", "Difficile"])
+def test_les_autres_modes_gardent_leur_sauvegarde(mode, fichier_sauvegarde):
+    """Hors Enfer, la mort renvoie toujours à la dernière sauvegarde."""
+    joueur, difficulte = heros_final(mode, niveau=2)
+    sauvegarder(joueur)
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, difficulte)
+    assert fichier_sauvegarde.exists()
+
+
+def test_le_record_suit_les_niveaux_atteints(capsys):
+    """Entrer dans un niveau suffit pour le compter, même si le héros y meurt."""
+    joueur, difficulte = heros_enfer()
+    with patch("ombrefer.main.explorer", side_effect=[True, True, False]):
+        with saisies("n", "o", "n", "o"):
+            jeu(joueur, difficulte)
+    assert "Record en mode Enfer : niveau 3" in capsys.readouterr().out
+
+
+def test_les_autres_modes_ne_touchent_pas_au_record(capsys):
+    """Seul l'Enfer compte pour le record."""
+    joueur, difficulte = heros_final("Difficile", niveau=8)
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, difficulte)
+    main_sortie = capsys.readouterr().out
+    assert "Record" not in main_sortie
+    with saisies("3", "4"):
+        main()
+    assert "Record en mode Enfer : aucun" in capsys.readouterr().out
+
+
+def test_finir_l_enfer_donne_le_succes_ultime(capsys):
+    """Le dernier boss vaincu en Enfer donne le succès ultime, sans le succès Difficile."""
+    joueur, difficulte = heros_enfer(niveau=NIVEAU_FINAL)
+    with patch("ombrefer.main.explorer", return_value=True):
+        jeu(joueur, difficulte)
+    sortie = capsys.readouterr().out
+    assert f"Succès obtenu : {SUCCES['Enfer'][0]} !" in sortie
+    assert "C'est le succès ultime" in sortie
+    assert modes_reussis() == ["Enfer"]
+
+
+def test_finir_difficile_ne_donne_pas_le_succes_ultime(capsys):
+    """Le mode Difficile garde son propre succès."""
+    joueur, difficulte = heros_final("Difficile")
+    with patch("ombrefer.main.explorer", return_value=True):
+        jeu(joueur, difficulte)
+    assert "succès ultime" not in capsys.readouterr().out
+    assert modes_reussis() == ["Difficile"]
+
+
+def test_effacer_sans_fichier_ne_plante_pas(fichier_sauvegarde):
+    """Effacer une sauvegarde absente ne fait rien."""
+    effacer_sauvegarde()
+    assert not fichier_sauvegarde.exists()

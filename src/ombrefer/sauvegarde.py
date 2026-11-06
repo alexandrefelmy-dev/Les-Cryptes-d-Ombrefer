@@ -10,6 +10,7 @@ import hashlib
 import hmac
 import json
 import zlib
+from pathlib import Path
 
 from ombrefer.personnage import Joueur
 
@@ -41,15 +42,23 @@ def sauvegarder(joueur):
     """Sauvegarde le joueur dans le fichier de sauvegarde."""
     with open(FICHIER_SAUVEGARDE, "wb") as f:
         f.write(encoder(joueur.to_dict()))
+    joueur.a_une_sauvegarde = True
 
 
 def charger():
     """Charge le joueur, ou renvoie None si le fichier manque ou a été modifié."""
     try:
         with open(FICHIER_SAUVEGARDE, "rb") as f:
-            return Joueur.from_dict(decoder(f.read()))
+            joueur = Joueur.from_dict(decoder(f.read()))
+        joueur.a_une_sauvegarde = True
+        return joueur
     except FileNotFoundError:
         return None
     except (ValueError, KeyError):
         print("Erreur : le fichier de sauvegarde est corrompu, modifié ou trop ancien.")
         return None
+
+
+def effacer_sauvegarde():
+    """Supprime le fichier de sauvegarde, s'il existe."""
+    Path(FICHIER_SAUVEGARDE).unlink(missing_ok=True)
