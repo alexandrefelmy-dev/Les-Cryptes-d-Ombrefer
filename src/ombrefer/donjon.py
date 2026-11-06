@@ -12,18 +12,26 @@ from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
 from ombrefer.personnage import Ennemi
 
 
-# Chaque ennemi, du plus faible au plus dangereux : (nom, PV, attaque, récompense,
-# effet infligé, chances d'apparaître sur 100). Sans effet, un ennemi a de meilleures stats.
+# Chaque ennemi, du plus faible au plus dangereux : (nom, PV, attaque, récompense, effet infligé,
+# chances d'apparaître, premier niveau de donjon où il apparaît).
+# Sans effet, un ennemi a de meilleures stats.
 MODELES_ENNEMIS = [
-    ("Rat géant", 6, 4, 3, POISON, 24),
-    ("Chauve-souris sanglante", 7, 6, 5, SAIGNEMENT, 18),
-    ("Araignée des cryptes", 9, 6, 7, POISON, 15),
-    ("Gobelin", 15, 7, 9, None, 13),
-    ("Squelette", 14, 9, 11, None, 10),
-    ("Ombre rampante", 16, 8, 14, AFFAIBLISSEMENT, 8),
-    ("Zombie", 24, 6, 15, IMMOBILISATION, 6),
-    ("Gargouille", 28, 9, 22, None, 4),
-    ("Goule", 22, 12, 28, None, 2),
+    ("Rat géant", 6, 4, 3, POISON, 24, 1),
+    ("Chauve-souris sanglante", 7, 6, 5, SAIGNEMENT, 18, 1),
+    ("Araignée des cryptes", 9, 6, 7, POISON, 15, 1),
+    ("Gobelin", 15, 7, 9, None, 13, 1),
+    ("Squelette", 14, 9, 11, None, 10, 1),
+    ("Ombre rampante", 16, 8, 14, AFFAIBLISSEMENT, 8, 1),
+    ("Zombie", 24, 6, 15, IMMOBILISATION, 6, 1),
+    ("Gargouille", 28, 9, 22, None, 4, 1),
+    ("Goule", 22, 12, 28, None, 2, 1),
+    ("Scorpion des tombes", 24, 12, 30, POISON, 10, 2),
+    ("Acolyte noir", 26, 12, 32, AFFAIBLISSEMENT, 9, 2),
+    ("Chevalier déchu", 34, 11, 38, None, 8, 3),
+    ("Harpie des tombes", 28, 14, 40, SAIGNEMENT, 7, 3),
+    ("Geôlier d'os", 42, 11, 46, IMMOBILISATION, 6, 4),
+    ("Abomination", 52, 12, 55, None, 5, 5),
+    ("Démon des cryptes", 40, 17, 60, SAIGNEMENT, 4, 6),
 ]
 
 # Chaque boss : (nom, PV, attaque, récompense, son effet), puis son arme (nom, bonus, effet).
@@ -32,6 +40,17 @@ MODELES_BOSS = [
     (("Spectre de Valbrume", 30, 16, 60, POISON), ("Lame spectrale", 16, POISON)),
     (("Roi liche", 50, 12, 50, AFFAIBLISSEMENT), ("Epée du roi liche", 14, AFFAIBLISSEMENT)),
     (("Seigneur vampire", 55, 12, 80, SAIGNEMENT), ("Croc de sang", 12, SAIGNEMENT)),
+]
+
+# Boss supplémentaires : (premier niveau de donjon où il apparaît, stats, arme).
+MODELES_BOSS_AVANCES = [
+    (3, ("Reine des araignées", 90, 13, 90, POISON), ("Dard de la reine", 20, POISON)),
+    (5, ("Dragon d'os", 110, 15, 120, IMMOBILISATION), ("Griffe d'os", 26, IMMOBILISATION)),
+    (
+        7,
+        ("Seigneur d'Ombrefer", 130, 17, 160, AFFAIBLISSEMENT),
+        ("Glaive noir", 34, AFFAIBLISSEMENT),
+    ),
 ]
 
 # Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles, effet infligé).
@@ -81,8 +100,11 @@ PART_RIEN = 0.3
 PART_REMEDES = 0.1
 PART_ARMURES = 0.2
 
-# Renforcement des ennemis pour chaque niveau du héros au-dessus du niveau 1.
-FORCE_PAR_NIVEAU = 0.37
+# Par niveau de donjon : part gagnée par les ennemis dangereux dans les tirages, selon leur rang
+# dans MODELES_ENNEMIS, et hausse de rarete_armes (sans dépasser RARETE_MAX).
+POIDS_DANGER = 0.25
+RARETE_PAR_NIVEAU = 0.05
+RARETE_MAX = 0.8
 
 
 @dataclass
@@ -99,20 +121,26 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
     chance_potion: float = 0.5
     rarete_armes: float = 0  # de 0 à 1 : plus c'est haut, moins armes et armures fortes sont rares
     nb_boss: int = len(MODELES_BOSS)  # seuls les premiers boss de MODELES_BOSS sont possibles
+    force_par_niveau: float = 0.5  # palier de force des ennemis au niveau 2 du donjon
+    courbe_force: float = 0.5  # de 0 à 1 : plus c'est bas, plus la force ralentit ensuite
+    niveau_donjon: int = 1
 
 
 DIFFICULTES = {
     "1": Difficulte(
         "Facile", 41, 8, 1.15, 1.0,
         gain_ennemis=1.0, chance_piege=0.05, chance_potion=0.55, rarete_armes=0.0, nb_boss=3,
+        force_par_niveau=0.53, courbe_force=0.5,
     ),
     "2": Difficulte(
         "Intermédiaire", 33, 8, 1.25, 1.5,
         gain_ennemis=1.25, chance_piege=0.1, chance_potion=0.5, rarete_armes=0.1, nb_boss=3,
+        force_par_niveau=0.82, courbe_force=0.42,
     ),
     "3": Difficulte(
         "Difficile", 24, 7, 1.35, 2.0,
         gain_ennemis=1.5, chance_piege=0.2, chance_potion=0.4, rarete_armes=0.2, nb_boss=4,
+        force_par_niveau=1.14, courbe_force=0.35,
     ),
 }
 
@@ -135,15 +163,39 @@ def ajuster(valeur, multiplicateur):
 
 
 def adapter_au_niveau(difficulte, niveau):
-    """Renvoie la difficulté avec des ennemis renforcés selon le niveau du héros."""
-    force = difficulte.force_ennemis * (1 + FORCE_PAR_NIVEAU * (niveau - 1))
-    return replace(difficulte, force_ennemis=force)
+    """Renvoie la difficulté adaptée à ce niveau de donjon : ennemis et butin plus forts.
+
+    La force fait un gros palier au niveau 2, à cause de l'arme du boss gagnée par le héros,
+    puis monte de plus en plus doucement, car ses progrès ralentissent.
+    """
+    montee = niveau - 1
+    renfort = 1 + difficulte.force_par_niveau * montee ** difficulte.courbe_force
+    return replace(
+        difficulte,
+        force_ennemis=difficulte.force_ennemis * renfort,
+        rarete_armes=min(RARETE_MAX, difficulte.rarete_armes + RARETE_PAR_NIVEAU * montee),
+        niveau_donjon=niveau,
+    )
+
+
+def ennemis_possibles(niveau):
+    """Renvoie les modèles d'ennemis qui peuvent apparaître à ce niveau de donjon."""
+    return [modele for modele in MODELES_ENNEMIS if modele[6] <= niveau]
+
+
+def poids_ennemis(modeles, niveau):
+    """Renvoie les chances de chaque modèle : les plus dangereux gagnent à chaque niveau."""
+    return [
+        modele[5] * (1 + POIDS_DANGER * rang * (niveau - 1))
+        for rang, modele in enumerate(modeles)
+    ]
 
 
 def creer_ennemi(difficulte):
     """Crée un ennemi selon ses chances d'apparaître, adapté à la difficulté."""
-    poids = [modele[5] for modele in MODELES_ENNEMIS]
-    nom, pv, attaque, recompense, effet, _ = random.choices(MODELES_ENNEMIS, weights=poids)[0]
+    modeles = ennemis_possibles(difficulte.niveau_donjon)
+    poids = poids_ennemis(modeles, difficulte.niveau_donjon)
+    nom, pv, attaque, recompense, effet, _, _ = random.choices(modeles, weights=poids)[0]
     force = difficulte.force_ennemis
     gain = difficulte.gain_ennemis
     return Ennemi(
@@ -225,11 +277,20 @@ def creer_salle(numero, difficulte):
     )
 
 
+def boss_possibles(difficulte):
+    """Renvoie les boss de ce mode et ceux débloqués par le niveau du donjon."""
+    avances = [
+        (stats, arme)
+        for niveau, stats, arme in MODELES_BOSS_AVANCES
+        if niveau <= difficulte.niveau_donjon
+    ]
+    return MODELES_BOSS[:difficulte.nb_boss] + avances
+
+
 def creer_salle_boss(donjon, difficulte):
     """Crée la salle finale : la difficulté choisit le boss, sa force et ses récompenses."""
-    boss_possibles = MODELES_BOSS[:difficulte.nb_boss]
     (nom, pv, attaque, recompense, effet), (nom_arme, bonus, effet_arme) = random.choice(
-        boss_possibles
+        boss_possibles(difficulte)
     )
     force = difficulte.force_ennemis
     gain = difficulte.recompense_boss

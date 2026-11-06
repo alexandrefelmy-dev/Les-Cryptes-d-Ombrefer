@@ -45,6 +45,40 @@ def test_equipement_sauvegarde_sans_doubler_le_bonus():
     assert charge.attaque == 9
 
 
+def test_niveau_de_donjon_dans_le_fichier(fichier_sauvegarde):
+    """Le fichier de sauvegarde contient le niveau de donjon du héros."""
+    joueur = creer_joueur()
+    joueur.niveau_donjon = 4
+    sauvegarder(joueur)
+    assert json.loads(fichier_sauvegarde.read_text(encoding="utf-8"))["niveau_donjon"] == 4
+    assert charger().niveau_donjon == 4
+
+
+def test_difficulte_dans_le_fichier(fichier_sauvegarde):
+    """Le fichier de sauvegarde contient le mode du héros."""
+    joueur = creer_joueur()
+    joueur.difficulte = "Difficile"
+    sauvegarder(joueur)
+    assert json.loads(fichier_sauvegarde.read_text(encoding="utf-8"))["difficulte"] == "Difficile"
+    assert charger().difficulte == "Difficile"
+
+
+def test_charger_ancienne_sauvegarde_sans_difficulte(fichier_sauvegarde):
+    """Une sauvegarde sans mode se charge sans erreur."""
+    donnees = creer_joueur().to_dict()
+    del donnees["difficulte"]
+    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
+    assert charger().difficulte is None
+
+
+def test_charger_ancienne_sauvegarde_sans_niveau_de_donjon(fichier_sauvegarde):
+    """Une sauvegarde d'avant les niveaux repart du niveau 1."""
+    donnees = creer_joueur().to_dict()
+    del donnees["niveau_donjon"]
+    fichier_sauvegarde.write_text(json.dumps(donnees), encoding="utf-8")
+    assert charger().niveau_donjon == 1
+
+
 def test_charger_ancienne_sauvegarde_sans_equipement(fichier_sauvegarde):
     """Une sauvegarde d'avant l'équipement se charge sans arme ni armure portée."""
     donnees = creer_joueur(defense=2).to_dict()

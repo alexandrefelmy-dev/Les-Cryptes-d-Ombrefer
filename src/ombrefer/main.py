@@ -25,7 +25,23 @@ def choisir_difficulte():
 
 def creer_heros(nom, difficulte):
     """Crée un nouveau héros avec les stats de départ de la difficulté."""
-    return Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
+    joueur = Joueur(nom, difficulte.pv_joueur, difficulte.attaque_joueur)
+    joueur.difficulte = difficulte.nom
+    return joueur
+
+
+def difficulte_du_heros(joueur):
+    """Renvoie le mode du héros, ou le demande une fois s'il vient d'une ancienne sauvegarde.
+
+    Renvoie None si le joueur revient en arrière au lieu de choisir.
+    """
+    for difficulte in DIFFICULTES.values():
+        if difficulte.nom == joueur.difficulte:
+            return difficulte
+    difficulte = choisir_difficulte()
+    if difficulte is not None:
+        joueur.difficulte = difficulte.nom
+    return difficulte
 
 
 def choix_menu_principal():
@@ -39,26 +55,42 @@ def choix_menu_principal():
     return choix
 
 
-def jeu(joueur, difficulte):
-    """Lance une partie complète avec ce héros, puis propose de le sauvegarder."""
+def demander_oui_non(question):
+    """Pose la question jusqu'à obtenir une réponse valide. Renvoie True pour oui."""
+    choix = input(question).strip().lower()
+    while choix not in ("o", "n"):
+        print("Réponse invalide.")
+        choix = input(question).strip().lower()
+    return choix == "o"
+
+
+def jouer_niveau(joueur, difficulte):
+    """Lance le niveau de donjon du héros. Renvoie True s'il veut continuer après sa victoire."""
+    niveau = joueur.niveau_donjon
     nb_salles = random.randint(NB_SALLES_MIN, NB_SALLES_MAX)
-    crypte = generer_donjon(nb_salles, adapter_au_niveau(difficulte, joueur.niveau))
-    print(f"{joueur.nom} entre dans les Cryptes d'Ombrefer... ({len(crypte)} salles)")
-    resultat = explorer(joueur, crypte)
-    if resultat:
-        print(
-            f"VICTOIRE ! {joueur.nom} sort de la crypte"
-            f" avec {joueur.piece} pièces d'or."
-        )
-        choix = input("Sauvegarder ton héros ? (o/n) : ").strip().lower()
-        while choix not in ("o", "n"):
-            print("Réponse invalide.")
-            choix = input("Sauvegarder ton héros ? (o/n) : ").strip().lower()
-        if choix == "o":
-            sauvegarder(joueur)
-            print("Héros sauvegardé.")
-    else:
-        print(f"{joueur.nom} a péri.")
+    crypte = generer_donjon(nb_salles, adapter_au_niveau(difficulte, niveau))
+    print(
+        f"{joueur.nom} entre dans les Cryptes d'Ombrefer, niveau {niveau}..."
+        f" ({len(crypte)} salles)"
+    )
+    if not explorer(joueur, crypte):
+        print(f"{joueur.nom} a péri au niveau {niveau}.")
+        return False
+    joueur.finir_niveau_donjon()
+    print(
+        f"VICTOIRE ! {joueur.nom} termine le niveau {niveau}"
+        f" avec {joueur.piece} pièces d'or, et se repose avant de redescendre."
+    )
+    if demander_oui_non("Sauvegarder ton héros ? (o/n) : "):
+        sauvegarder(joueur)
+        print("Héros sauvegardé.")
+    return demander_oui_non(f"Descendre au niveau {joueur.niveau_donjon} ? (o/n) : ")
+
+
+def jeu(joueur, difficulte):
+    """Enchaîne les niveaux de donjon jusqu'à la mort du héros ou son retour au menu."""
+    while jouer_niveau(joueur, difficulte):
+        pass
 
 
 def demander_nom():
@@ -83,14 +115,15 @@ def nouvelle_partie():
 
 
 def partie_chargee():
-    """Charge le héros sauvegardé et le relance : il garde ses stats dans tous les modes."""
+    """Charge le héros sauvegardé et le relance dans son mode et à son niveau de donjon."""
     aldric = charger()
     if aldric is None:
         print("Aucune sauvegarde trouvée.")
         return
-    print(f"{aldric.nom} est de retour ! {aldric}")
-    difficulte = choisir_difficulte()
+    print(f"{aldric.nom} est de retour au niveau {aldric.niveau_donjon} ! {aldric}")
+    difficulte = difficulte_du_heros(aldric)
     if difficulte is not None:
+        print(f"Mode : {difficulte.nom}")
         jeu(aldric, difficulte)
 
 

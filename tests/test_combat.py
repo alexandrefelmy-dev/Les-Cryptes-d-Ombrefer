@@ -71,15 +71,15 @@ def test_impossible_de_fuir_un_boss():
 # --- Se défendre ---
 
 
-def test_defendre_triple_la_defense_sans_la_modifier():
-    """Le bonus triple la défense actuelle sans changer la défense du joueur."""
+def test_defendre_double_la_defense_sans_la_modifier():
+    """Le bonus double la défense actuelle sans changer la défense du joueur."""
     joueur = creer_joueur(defense=2)
     with hasard():
         action_defendre(joueur, Ennemi("Rat", 8, 10, 3))
     assert joueur.tours_defense == 3
-    assert joueur.defense_actuelle() == 6
+    assert joueur.defense_actuelle() == 4
     assert joueur.defense == 2
-    assert joueur.pv == 26
+    assert joueur.pv == 24
 
 
 def test_defendre_sans_armure_est_refuse(capsys):
@@ -92,19 +92,31 @@ def test_defendre_sans_armure_est_refuse(capsys):
 
 
 def test_defendre_dure_trois_tours():
-    """Dégâts de 10 : 4 + 4 + 4 avec le bonus, puis 8 sans lui."""
+    """Dégâts de 10 : 6 + 6 + 6 avec le bonus, puis 8 sans lui."""
     joueur = creer_joueur(pv=100, attaque=1, defense=2)
     with hasard(), saisies("4", "1", "1", "1", "1"):
         combat(joueur, Ennemi("Ogre", 4, 10, 0))
-    assert joueur.pv == 80
+    assert joueur.pv == 74
 
 
-def test_se_redefendre_relance_sans_cumuler():
-    """Se redéfendre remet le compteur à 3, sans multiplier encore la défense."""
+def test_une_seule_garde_par_combat(capsys):
+    """Une seconde garde est refusée sans perdre le tour : 3 tours à 6 dégâts, puis 2 à 8."""
     joueur = creer_joueur(pv=100, attaque=1, defense=2)
     with hasard(), saisies("4", "1", "4", "1", "1", "1", "1"):
         combat(joueur, Ennemi("Ogre", 5, 10, 0))
-    assert joueur.pv == 100 - 4 * 5 - 8
+    assert joueur.pv == 100 - 6 * 3 - 8 * 2
+    assert "déjà levé sa garde" in capsys.readouterr().out
+
+
+def test_la_garde_revient_au_combat_suivant():
+    """Chaque combat redonne droit à une garde."""
+    joueur = creer_joueur(pv=100, attaque=8, defense=2)
+    with hasard(), saisies("4", "1"):
+        combat(joueur, Ennemi("Rat", 8, 4, 3))
+    assert joueur.garde_utilisee is False
+    with hasard(), saisies("4", "1"):
+        combat(joueur, Ennemi("Rat", 8, 4, 3))
+    assert joueur.garde_utilisee is False
 
 
 def test_bonus_retire_apres_une_victoire():

@@ -2,6 +2,7 @@
 
 from outils import creer_joueur, hasard, joueur_avec_potion
 
+from ombrefer.effet import POISON
 from ombrefer.objet import Potion
 from ombrefer.personnage import Joueur, Personnage
 
@@ -89,6 +90,22 @@ def test_pas_de_defense_de_base():
     with hasard():
         joueur.subir_degats(10)
     assert joueur.pv == 20
+
+
+def test_nouveau_joueur_au_niveau_1():
+    """Un nouveau héros commence au premier niveau de donjon."""
+    assert creer_joueur().niveau_donjon == 1
+
+
+def test_finir_un_niveau_repose_le_heros():
+    """Finir un niveau fait descendre le héros, rend ses PV et guérit ses effets."""
+    joueur = creer_joueur()
+    joueur.pv = 3
+    joueur.recevoir_effet(POISON)
+    joueur.finir_niveau_donjon()
+    assert joueur.niveau_donjon == 2
+    assert joueur.pv == 30
+    assert not joueur.effets
 
 
 def test_payer_retire_l_or():

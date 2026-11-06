@@ -142,16 +142,20 @@ def action_fuir(joueur, ennemi, boss):
 
 
 def action_defendre(joueur, ennemi):
-    """Triple la défense et bloque les nouveaux effets pendant 3 tours, ce tour compris.
+    """Double la défense et bloque les nouveaux effets pendant 3 tours, ce tour compris.
 
-    Sans armure ni effet à craindre, il n'y a rien à gagner : l'action est refusée et
-    renvoie "annule".
+    La garde ne se lève qu'une fois par combat. Une seconde garde est refusée, comme celle d'un
+    joueur sans armure et sans effet à craindre : l'action renvoie alors "annule".
     """
+    if joueur.garde_utilisee:
+        print(f"{joueur.nom} a déjà levé sa garde pendant ce combat.")
+        return "annule"
     if joueur.defense == 0 and ennemi.effet_inflige() is None:
         print(f"{joueur.nom} n'a aucune armure : se défendre ne servirait à rien.")
         return "annule"
-    print(f"Garde levée pendant {DUREE_DEFENSE} tours : défense triplée, aucun nouvel effet.")
+    print(f"Garde levée pendant {DUREE_DEFENSE} tours : défense doublée, aucun nouvel effet.")
     joueur.tours_defense = DUREE_DEFENSE
+    joueur.garde_utilisee = True
     riposte(ennemi, joueur)
     return None
 

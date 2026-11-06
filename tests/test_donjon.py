@@ -18,6 +18,7 @@ from ombrefer.donjon import (
     adapter_au_niveau,
     affronter_ennemi,
     ajuster,
+    boss_possibles,
     creer_arme,
     creer_armure,
     creer_boutique,
@@ -31,14 +32,18 @@ from ombrefer.donjon import (
     DIFFICULTES,
     effacer_ecran,
     explorer,
-    FORCE_PAR_NIVEAU,
     generer_donjon,
     MODELES_ARMES,
     MODELES_ARMURES,
     CHANCE_BOUTIQUE,
     CHANCE_EFFET_BOSS,
     CHANCE_EFFET_ENNEMI,
+    MODELES_BOSS_AVANCES,
     MODELES_REMEDES,
+    RARETE_MAX,
+    RARETE_PAR_NIVEAU,
+    ennemis_possibles,
+    poids_ennemis,
     Salle,
     MODELES_BOSS,
     MODELES_ENNEMIS,
@@ -98,7 +103,7 @@ def test_ajuster_ne_descend_pas_sous_un():
 
 def test_creer_ennemi_selon_la_force():
     """La force multiplie les PV et l'attaque, mais pas la récompense."""
-    with patch("random.choices", return_value=[("Rat", 10, 5, 3, POISON, 10)]):
+    with patch("random.choices", return_value=[("Rat", 10, 5, 3, POISON, 10, 1)]):
         ennemi = creer_ennemi(Difficulte("Test", 30, 8, 2, 1))
     assert (ennemi.pv_max, ennemi.attaque, ennemi.recompense) == (20, 10, 3)
 
@@ -123,7 +128,7 @@ def test_recompenses_du_boss_selon_le_mode():
 
 def test_gain_des_ennemis_normaux():
     """Le gain multiplie la récompense, donc l'or et l'XP, sans renforcer l'ennemi."""
-    with patch("random.choices", return_value=[("Rat", 10, 5, 4, POISON, 10)]):
+    with patch("random.choices", return_value=[("Rat", 10, 5, 4, POISON, 10, 1)]):
         ennemi = creer_ennemi(Difficulte("Test", 30, 8, 1, 1, gain_ennemis=1.5))
     assert (ennemi.recompense, ennemi.pv_max, ennemi.attaque) == (6, 10, 5)
 
@@ -226,16 +231,33 @@ def test_boss_possibles_selon_le_mode(difficulte):
 
 
 def test_niveau_1_ne_change_rien():
-    """Un héros de niveau 1 affronte la force normale du mode."""
+    """Le premier niveau de donjon garde la force normale du mode."""
     difficulte = DIFFICULTES["2"]
     assert adapter_au_niveau(difficulte, 1) == difficulte
 
 
 def test_force_suit_le_niveau():
-    """Chaque niveau au-dessus de 1 ajoute FORCE_PAR_NIVEAU à la force."""
-    assert FORCE_PAR_NIVEAU > 0
-    adaptee = adapter_au_niveau(Difficulte("Test", 30, 8, 2, 1), 3)
-    assert adaptee.force_ennemis == 2 * (1 + 2 * FORCE_PAR_NIVEAU)
+    """La force suit le palier et la courbe du mode."""
+    difficulte = Difficulte("Test", 30, 8, 2, 1, force_par_niveau=0.5, courbe_force=0.5)
+    assert adapter_au_niveau(difficulte, 5).force_ennemis == 2 * (1 + 0.5 * 4 ** 0.5)
+
+
+@chaque_mode
+def test_la_force_monte_a_chaque_niveau_dans_tous_les_modes(difficulte):
+    """Chaque niveau de donjon est plus fort que le précédent."""
+    forces = [adapter_au_niveau(difficulte, niveau).force_ennemis for niveau in range(1, 15)]
+    assert forces == sorted(set(forces))
+
+
+def test_le_butin_s_ameliore_avec_le_niveau():
+    """La rareté monte avec le niveau de donjon, sans dépasser son maximum."""
+    assert adapter_au_niveau(NEUTRE, 3).rarete_armes == 2 * RARETE_PAR_NIVEAU
+    assert adapter_au_niveau(NEUTRE, 100).rarete_armes == RARETE_MAX
+
+
+def test_le_niveau_est_note_dans_la_difficulte():
+    """La difficulté adaptée connaît le niveau de son donjon."""
+    assert adapter_au_niveau(NEUTRE, 4).niveau_donjon == 4
 
 
 def test_adapter_au_niveau_ne_modifie_pas_le_mode():
@@ -361,15 +383,16 @@ def test_chaque_effet_a_ses_ennemis_ses_armes_et_ses_armures():
 
 
 def test_cinq_ennemis_sur_neuf_ont_un_effet():
-    """Il y a 9 ennemis, dont 5 avec un effet."""
-    assert len(MODELES_ENNEMIS) == 9
-    assert sum(modele[4] is not None for modele in MODELES_ENNEMIS) == 5
+    """Le premier niveau a 9 ennemis, dont 5 avec un effet."""
+    modeles = ennemis_possibles(1)
+    assert len(modeles) == 9
+    assert sum(modele[4] is not None for modele in modeles) == 5
 
 
 def test_les_ennemis_sans_effet_sont_plus_solides():
     """Sans effet, un ennemi a plus de PV et d'attaque que ses voisins à effet."""
-    avec = [modele for modele in MODELES_ENNEMIS if modele[4] is not None]
-    sans = [modele for modele in MODELES_ENNEMIS if modele[4] is None]
+    avec = [modele for modele in ennemis_possibles(1) if modele[4] is not None]
+    sans = [modele for modele in ennemis_possibles(1) if modele[4] is None]
     assert sum(modele[1] * modele[2] for modele in sans) / len(sans) > sum(
         modele[1] * modele[2] for modele in avec
     ) / len(avec)
@@ -379,11 +402,71 @@ def test_les_ennemis_dangereux_sont_les_plus_rares():
     """Du premier au dernier : le danger et la récompense montent, les chances baissent."""
     danger = [modele[1] * modele[2] for modele in MODELES_ENNEMIS]
     recompenses = [modele[3] for modele in MODELES_ENNEMIS]
-    chances = [modele[5] for modele in MODELES_ENNEMIS]
+    chances = [modele[5] for modele in ennemis_possibles(1)]
     assert danger == sorted(set(danger))
     assert recompenses == sorted(set(recompenses))
     assert chances == sorted(set(chances), reverse=True)
     assert sum(chances) == 100
+
+
+def test_nouveaux_ennemis_selon_le_niveau():
+    """Les ennemis arrivent au fil des niveaux, jamais avant le leur."""
+    tailles = [len(ennemis_possibles(niveau)) for niveau in range(1, 7)]
+    assert tailles == sorted(set(tailles))
+    assert len(ennemis_possibles(6)) == len(MODELES_ENNEMIS)
+    premiers = [modele[6] for modele in MODELES_ENNEMIS]
+    assert premiers == sorted(premiers)
+
+
+def test_ennemi_tire_selon_le_niveau():
+    """Un ennemi tiré au niveau 1 ne vient jamais d'un niveau supérieur."""
+    noms = {creer_ennemi(NEUTRE).nom for _ in range(2000)}
+    assert noms == {modele[0] for modele in ennemis_possibles(1)}
+
+
+def test_les_ennemis_forts_tombent_plus_souvent_avec_le_niveau():
+    """Les parts des ennemis du premier niveau glissent vers les plus dangereux."""
+    modeles = ennemis_possibles(1)
+    part_rat = []
+    part_goule = []
+    for niveau in (1, 3, 6):
+        poids = poids_ennemis(modeles, niveau)
+        part_rat.append(poids[0] / sum(poids))
+        part_goule.append(poids[-1] / sum(poids))
+    assert part_rat == sorted(part_rat, reverse=True)
+    assert part_goule == sorted(part_goule)
+
+
+def test_le_premier_niveau_garde_les_chances_d_origine():
+    """Au niveau 1, les poids sont exactement les chances des modèles."""
+    modeles = ennemis_possibles(1)
+    assert poids_ennemis(modeles, 1) == [modele[5] for modele in modeles]
+
+
+def test_boss_avances_selon_le_niveau():
+    """Un boss avancé n'apparaît qu'à partir de son niveau."""
+    assert len(boss_possibles(adapter_au_niveau(NEUTRE, 2))) == 4
+    assert len(boss_possibles(adapter_au_niveau(NEUTRE, 3))) == 5
+    assert len(boss_possibles(adapter_au_niveau(NEUTRE, 7))) == 7
+
+
+def test_boss_plus_fort_selon_le_niveau():
+    """Le même boss gagne des PV et de l'attaque quand le niveau monte."""
+    with hasard(), patch("random.choice", return_value=MODELES_BOSS[0]):
+        faible = creer_salle_boss([], NEUTRE).ennemi
+        fort = creer_salle_boss([], adapter_au_niveau(NEUTRE, 6)).ennemi
+    assert fort.pv_max > faible.pv_max
+    assert fort.attaque > faible.attaque
+
+
+def test_boss_avances_de_plus_en_plus_durs():
+    """Chaque boss avancé arrive plus tard avec plus de PV, d'attaque et de récompense."""
+    niveaux = [niveau for niveau, _, _ in MODELES_BOSS_AVANCES]
+    stats = [boss[1:4] for _, boss, _ in MODELES_BOSS_AVANCES]
+    assert niveaux == sorted(set(niveaux))
+    for colonne in range(3):
+        valeurs = [boss[colonne] for boss in stats]
+        assert valeurs == sorted(set(valeurs))
 
 
 def test_frequences_des_ennemis():

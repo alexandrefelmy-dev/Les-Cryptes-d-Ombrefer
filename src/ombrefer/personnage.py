@@ -15,7 +15,7 @@ from ombrefer.objet import objet_depuis_dict
 
 
 CHANCE_EFFET_ARME = 0.3
-MULTIPLICATEUR_GARDE = 3  # multiplie la défense du joueur pendant qu'il se défend
+MULTIPLICATEUR_GARDE = 2  # multiplie la défense du joueur pendant qu'il se défend
 
 
 class Personnage:
@@ -102,6 +102,8 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     def __init__(self, nom, pv_max, attaque):
         super().__init__(nom, pv_max, attaque)
         self.niveau = 1
+        self.niveau_donjon = 1
+        self.difficulte = None  # nom du mode, choisi une seule fois pour tout le parcours
         self.piece = 0
         self.defense = 0
         self.arme = None
@@ -109,10 +111,17 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         self.inventaire = []
         self.xp = 0
         self.tours_defense = 0
+        self.garde_utilisee = False
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""
         self.piece += montant
+
+    def finir_niveau_donjon(self):
+        """Passe au niveau de donjon suivant, après un repos qui rend les PV et guérit tout."""
+        self.niveau_donjon += 1
+        self.pv = self.pv_max
+        self.effets = {}
 
     def payer(self, montant):
         """Retire l'or du joueur s'il en a assez. Renvoie True si le paiement a eu lieu."""
@@ -155,6 +164,7 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     def fin_de_combat(self):
         """Termine la garde et les effets de combat : seul le poison continue après."""
         self.tours_defense = 0
+        self.garde_utilisee = False
         self.repit_immobilisation = 0
         self.effets = {effet: tours for effet, tours in self.effets.items() if effet == POISON}
 
@@ -201,6 +211,8 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
             "pv_max": self.pv_max,
             "attaque": self.attaque,
             "niveau": self.niveau,
+            "niveau_donjon": self.niveau_donjon,
+            "difficulte": self.difficulte,
             "piece": self.piece,
             "defense": self.defense,
             "arme": self.arme.to_dict() if self.arme else None,
@@ -215,6 +227,8 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         joueur = cls(donnees["nom"], donnees["pv_max"], donnees["attaque"])
         joueur.pv = donnees["pv"]
         joueur.niveau = donnees["niveau"]
+        joueur.niveau_donjon = donnees.get("niveau_donjon", 1)
+        joueur.difficulte = donnees.get("difficulte")
         joueur.piece = donnees["piece"]
         joueur.defense = donnees["defense"]
         arme, armure = donnees.get("arme"), donnees.get("armure")
