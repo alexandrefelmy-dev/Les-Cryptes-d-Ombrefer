@@ -5,7 +5,15 @@ import random
 from ombrefer.classe import CLASSES
 from ombrefer.donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
 from ombrefer.personnage import Joueur
-from ombrefer.sauvegarde import charger, effacer_sauvegarde, sauvegarder
+from ombrefer.sauvegarde import (
+    EMPLACEMENTS,
+    apercu,
+    charger,
+    effacer_sauvegarde,
+    emplacement_occupe,
+    reprendre_ancien_fichier,
+    sauvegarder,
+)
 from ombrefer.succes import (
     MODE_ULTIME,
     SUCCES,
@@ -34,8 +42,8 @@ def choisir_difficulte():
     """Demande la difficulté et renvoie ses réglages, ou None pour revenir."""
     print("Choix du niveau de difficulté")
     for numero, difficulte in DIFFICULTES.items():
-        avertissement = " (comme Difficile, mais la mort efface le héros)"
-        print(f"{numero}. {difficulte.nom}{avertissement if difficulte.mort_definitive else ''}")
+        avertissement = " (la mort efface le héros)" if difficulte.mort_definitive else ""
+        print(f"{numero}. {difficulte.nom}{avertissement}")
     return demander_option(DIFFICULTES)
 
 
@@ -81,6 +89,34 @@ def demander_oui_non(question):
     return choix == "o"
 
 
+def demander_emplacement():
+    """Affiche les emplacements et renvoie celui choisi, ou None pour revenir."""
+    for numero in EMPLACEMENTS:
+        print(f"{numero}. {apercu(numero)}")
+    return demander_option({str(numero): numero for numero in EMPLACEMENTS})
+
+
+def choisir_emplacement_libre():
+    """Demande où sauvegarder un nouveau héros. Écraser un emplacement demande une confirmation."""
+    while True:
+        print("Où sauvegarder ton héros ?")
+        emplacement = demander_emplacement()
+        if emplacement is None or not emplacement_occupe(emplacement):
+            return emplacement
+        if demander_oui_non(f"Remplacer l'emplacement {emplacement} ? (o/n) : "):
+            return emplacement
+
+
+def sauvegarder_heros(joueur):
+    """Sauvegarde le héros dans son emplacement, à choisir s'il n'en a pas encore."""
+    emplacement = joueur.emplacement or choisir_emplacement_libre()
+    if emplacement is None:
+        print("Sauvegarde annulée.")
+        return
+    sauvegarder(joueur, emplacement)
+    print(f"Héros sauvegardé dans l'emplacement {emplacement}.")
+
+
 def terminer_le_jeu(joueur, niveau):
     """Raconte la fin du jeu et donne au héros le succès de son mode."""
     nom_succes, recit = SUCCES[joueur.difficulte]
@@ -98,13 +134,12 @@ def terminer_le_jeu(joueur, niveau):
 def entrer_en_enfer(joueur, niveau):
     """Note le record et consomme la sauvegarde : seule une victoire permet d'en refaire une.
 
-    Sans cela, quitter le jeu en plein combat perdu éviterait la mort. Seule la sauvegarde de ce
-    héros est touchée : celui qui n'a jamais sauvegardé laisse le fichier d'un autre héros.
+    Sans cela, quitter le jeu en plein combat perdu éviterait la mort. Seul l'emplacement de ce
+    héros est touché : celui qui n'a jamais sauvegardé ne touche à aucun fichier.
     """
     noter_record_enfer(joueur, niveau)
-    if joueur.a_une_sauvegarde:
-        effacer_sauvegarde()
-        joueur.a_une_sauvegarde = False
+    if joueur.emplacement is not None:
+        effacer_sauvegarde(joueur.emplacement)
     print("Mode Enfer : aucun retour possible. Mourir ou quitter ici efface ton héros.")
 
 
@@ -140,8 +175,7 @@ def jouer_niveau(joueur, difficulte):
         f" avec {joueur.piece} pièces d'or, et se repose avant de redescendre."
     )
     if demander_oui_non("Sauvegarder ton héros ? (o/n) : "):
-        sauvegarder(joueur)
-        print("Héros sauvegardé.")
+        sauvegarder_heros(joueur)
     return demander_oui_non(f"Descendre au niveau {joueur.niveau_donjon} ? (o/n) : ")
 
 
@@ -176,10 +210,17 @@ def nouvelle_partie():
 
 
 def partie_chargee():
-    """Charge le héros sauvegardé et le relance dans son mode et à son niveau de donjon."""
-    aldric = charger()
-    if aldric is None:
+    """Fait choisir un héros sauvegardé et le relance dans son mode et à son niveau de donjon."""
+    if not any(emplacement_occupe(numero) for numero in EMPLACEMENTS):
         print("Aucune sauvegarde trouvée.")
+        return
+    print("Quel héros charger ?")
+    emplacement = demander_emplacement()
+    if emplacement is None:
+        return
+    aldric = charger(emplacement)
+    if aldric is None:
+        print("Impossible de charger cet emplacement.")
         return
     print(f"{aldric.nom} est de retour au niveau {aldric.niveau_donjon} ! {aldric}")
     print(f"Classe : {aldric.classe.nom} | Mode : {aldric.difficulte}")
@@ -188,6 +229,7 @@ def partie_chargee():
 
 def main():
     """Affiche le menu principal et enchaîne les parties jusqu'à ce que le joueur quitte."""
+    reprendre_ancien_fichier()
     while True:
         choix = choix_menu_principal()
         match choix:

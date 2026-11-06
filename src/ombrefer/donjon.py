@@ -165,25 +165,30 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
     mort_definitive: bool = False  # la mort efface le héros, sans retour à sa sauvegarde
 
 
+# Du plus simple au plus dur : le bot prudent finit le jeu d'une traite dans environ 35 %, 12 %, 3 %
+# et 0,5 % des parties. force_par_niveau règle le danger des niveaux après le premier.
 DIFFICULTES = {
     "1": Difficulte(
-        "Facile", 35, 8, 1.23, 1.0,
+        "Facile", 35, 8, 0.9, 1.0,
         gain_ennemis=1.0, chance_piege=0.05, chance_potion=0.55, rarete_armes=0.0, nb_boss=3,
-        force_par_niveau=0.56, courbe_force=0.5,
+        force_par_niveau=0.72, courbe_force=0.5,
     ),
     "2": Difficulte(
-        "Intermédiaire", 28, 8, 1.36, 1.5,
+        "Intermédiaire", 28, 8, 0.95, 1.5,
         gain_ennemis=1.25, chance_piege=0.1, chance_potion=0.5, rarete_armes=0.1, nb_boss=3,
-        force_par_niveau=0.85, courbe_force=0.42,
+        force_par_niveau=0.87, courbe_force=0.5,
     ),
     "3": Difficulte(
-        "Difficile", 21, 7, 1.5, 2.0,
+        "Difficile", 24, 7, 1.0, 1.75,
+        gain_ennemis=1.4, chance_piege=0.15, chance_potion=0.45, rarete_armes=0.15, nb_boss=4,
+        force_par_niveau=0.96, courbe_force=0.5,
+    ),
+    "4": Difficulte(
+        "Enfer", 21, 7, 1.05, 2.0,
         gain_ennemis=1.5, chance_piege=0.2, chance_potion=0.4, rarete_armes=0.2, nb_boss=4,
-        force_par_niveau=1.2, courbe_force=0.35,
+        force_par_niveau=1.06, courbe_force=0.5, mort_definitive=True,
     ),
 }
-# L'Enfer reprend tous les réglages du mode Difficile : seule la mort change.
-DIFFICULTES["4"] = replace(DIFFICULTES["3"], nom="Enfer", mort_definitive=True)
 
 
 @dataclass

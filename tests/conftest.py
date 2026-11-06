@@ -11,9 +11,11 @@ def fixture_fichier_succes(tmp_path, monkeypatch):
     return chemin
 
 
-@pytest.fixture(name="fichier_sauvegarde")
+@pytest.fixture(name="fichier_sauvegarde", autouse=True)
 def fixture_fichier_sauvegarde(tmp_path, monkeypatch):
-    """Redirige la sauvegarde vers un dossier temporaire et renvoie le chemin du fichier."""
-    chemin = tmp_path / "sauvegarde.sav"
-    monkeypatch.setattr("ombrefer.sauvegarde.FICHIER_SAUVEGARDE", str(chemin))
-    return chemin
+    """Protège les vraies sauvegardes et renvoie le fichier de l'emplacement 1."""
+    monkeypatch.setattr(
+        "ombrefer.sauvegarde.FICHIER_SAUVEGARDE", str(tmp_path / "sauvegarde_{}.sav")
+    )
+    monkeypatch.setattr("ombrefer.sauvegarde.ANCIEN_FICHIER", str(tmp_path / "sauvegarde.sav"))
+    return tmp_path / "sauvegarde_1.sav"

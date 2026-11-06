@@ -24,7 +24,14 @@ from ombrefer.main import (
     nouvelle_partie,
     partie_chargee,
 )
-from ombrefer.sauvegarde import charger, effacer_sauvegarde, sauvegarder
+from ombrefer.sauvegarde import (
+    EMPLACEMENTS,
+    charger,
+    chemin,
+    effacer_sauvegarde,
+    emplacement_occupe,
+    sauvegarder,
+)
 from ombrefer.succes import SUCCES, modes_reussis
 
 
@@ -141,7 +148,7 @@ def test_reponse_invalide_redemandee():
 def test_sauvegarder_garde_le_niveau_suivant():
     """Après le niveau 1, la sauvegarde indique le niveau 2, où le héros repart."""
     joueur = creer_joueur()
-    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "n"):
+    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "1", "n"):
         jeu(joueur, NEUTRE)
     assert charger().niveau_donjon == 2
 
@@ -155,7 +162,7 @@ def test_heros_charge_repart_de_son_niveau(capsys):
     joueur.difficulte = "Facile"
     joueur.prendre_classe(CLASSES["1"])
     sauvegarder(joueur)
-    with patch("ombrefer.main.explorer", return_value=False):
+    with patch("ombrefer.main.explorer", return_value=False), saisies("1"):
         partie_chargee()
     assert "niveau 5..." in capsys.readouterr().out
 
@@ -210,11 +217,12 @@ def test_heros_charge_garde_ses_stats():
     joueur = creer_joueur(pv=77, attaque=20)
     joueur.difficulte = "Difficile"
     joueur.prendre_classe(CLASSES["1"])
-    with patch("ombrefer.main.charger", return_value=joueur):
-        with patch("ombrefer.main.jeu") as jeu_simule:
-            partie_chargee()
-    assert jeu_simule.call_args.args == (joueur, DIFFICULTES["3"])
-    assert (joueur.pv_max, joueur.attaque) == (77, 20)
+    sauvegarder(joueur)
+    with saisies("1"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
+    charge, difficulte = jeu_simule.call_args.args
+    assert difficulte is DIFFICULTES["3"]
+    assert (charge.pv_max, charge.attaque) == (77, 20)
 
 
 def test_nouveau_heros_retient_son_mode():
@@ -225,12 +233,11 @@ def test_nouveau_heros_retient_son_mode():
 @pytest.mark.usefixtures("fichier_sauvegarde")
 @pytest.mark.parametrize("numero", DIFFICULTES)
 def test_le_mode_ne_change_pas_au_chargement(numero):
-    """Recharger un héros reprend son mode sans jamais le demander."""
+    """Recharger un héros reprend son mode : seule la question de l'emplacement est posée."""
     difficulte = DIFFICULTES[numero]
     sauvegarder(creer_heros("Aldric", CLASSES["1"], difficulte))
-    with patch("builtins.input", side_effect=AssertionError("question interdite")):
-        with patch("ombrefer.main.jeu") as jeu_simule:
-            partie_chargee()
+    with saisies("1"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
     assert jeu_simule.call_args.args[1] is difficulte
 
 
@@ -238,7 +245,7 @@ def test_le_mode_ne_change_pas_au_chargement(numero):
 def test_le_mode_survit_a_plusieurs_sauvegardes():
     """Le mode reste le même d'une sauvegarde à l'autre au fil des niveaux."""
     joueur = creer_heros("Aldric", CLASSES["1"], DIFFICULTES["3"])
-    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "o", "o", "n"):
+    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "1", "o", "o", "n"):
         jeu(joueur, DIFFICULTES["3"])
     charge = charger()
     assert charge.difficulte == "Difficile"
@@ -386,14 +393,13 @@ def heros_enfer(niveau=1):
     return heros_final("Enfer", niveau)
 
 
-def test_l_enfer_reprend_exactement_le_mode_difficile():
-    """Seuls le nom et la mort définitive séparent l'Enfer du mode Difficile."""
-    difficile, enfer = vars(DIFFICULTES["3"]).copy(), vars(DIFFICULTES["4"]).copy()
-    assert enfer.pop("nom") == "Enfer"
-    assert enfer.pop("mort_definitive") is True
-    difficile.pop("nom")
-    assert difficile.pop("mort_definitive") is False
-    assert enfer == difficile
+def test_l_enfer_est_le_mode_le_plus_dur():
+    """L'Enfer arrive en dernier : ses ennemis sont les plus forts, même sans la mort définitive."""
+    modes = list(DIFFICULTES.values())
+    assert modes[-1].nom == "Enfer"
+    assert modes[-1].force_ennemis == max(mode.force_ennemis for mode in modes)
+    assert modes[-1].force_par_niveau == max(mode.force_par_niveau for mode in modes)
+    assert modes[-1].pv_joueur == min(mode.pv_joueur for mode in modes)
 
 
 def test_seul_l_enfer_efface_le_heros():
@@ -405,7 +411,7 @@ def test_le_menu_previent_du_danger_de_l_enfer(capsys):
     """Le joueur sait ce qui l'attend avant de choisir."""
     with saisies("0"):
         choisir_difficulte()
-    assert "4. Enfer (comme Difficile, mais la mort efface le héros)" in capsys.readouterr().out
+    assert "4. Enfer (la mort efface le héros)" in capsys.readouterr().out
 
 
 def test_mourir_en_enfer_efface_la_sauvegarde(fichier_sauvegarde, capsys):
@@ -435,7 +441,7 @@ def test_sauvegarder_puis_mourir_au_niveau_suivant(fichier_sauvegarde):
     """La sauvegarde faite pendant la partie disparaît aussi à la mort."""
     joueur, difficulte = heros_enfer()
     with patch("ombrefer.main.explorer", side_effect=[True, False]):
-        with saisies("o", "o"):
+        with saisies("o", "1", "o"):
             jeu(joueur, difficulte)
     assert not fichier_sauvegarde.exists()
 
@@ -465,7 +471,7 @@ def test_refuser_de_descendre_garde_le_heros_d_enfer(fichier_sauvegarde):
     """Sauvegarder puis s'arrêter entre deux niveaux reste permis : le héros n'a pas péri."""
     joueur, difficulte = heros_enfer()
     with patch("ombrefer.main.explorer", return_value=True):
-        with saisies("o", "n"):
+        with saisies("o", "1", "n"):
             jeu(joueur, difficulte)
     assert fichier_sauvegarde.exists()
     assert charger().niveau_donjon == 2
@@ -526,3 +532,163 @@ def test_effacer_sans_fichier_ne_plante_pas(fichier_sauvegarde):
     """Effacer une sauvegarde absente ne fait rien."""
     effacer_sauvegarde()
     assert not fichier_sauvegarde.exists()
+
+
+# --- Emplacements de sauvegarde ---
+
+
+def heros_sauvegarde(nom, emplacement, mode="Facile"):
+    """Sauvegarde un nouveau héros de ce mode dans cet emplacement et le renvoie."""
+    difficulte = next(d for d in DIFFICULTES.values() if d.nom == mode)
+    joueur = creer_heros(nom, CLASSES["1"], difficulte)
+    sauvegarder(joueur, emplacement)
+    return joueur
+
+
+def test_il_y_a_trois_emplacements():
+    """Le jeu propose trois emplacements."""
+    assert EMPLACEMENTS == (1, 2, 3)
+
+
+def test_chaque_nouveau_heros_choisit_son_emplacement(capsys):
+    """La liste montre les héros déjà là, et le nouveau va où le joueur le demande."""
+    heros_sauvegarde("Brune", 1)
+    joueur = creer_joueur()
+    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "2", "n"):
+        jeu(joueur, NEUTRE)
+    sortie = capsys.readouterr().out
+    assert "1. Brune, Guerrier, mode Facile, niveau 1 du donjon" in sortie
+    assert "2. vide" in sortie
+    assert "emplacement 2" in sortie
+    assert charger(1).nom == "Brune"
+    assert charger(2).nom == "Aldric"
+
+
+def test_le_heros_garde_son_emplacement():
+    """Après le premier choix, plus aucune question sur l'emplacement."""
+    joueur = creer_joueur()
+    with patch("ombrefer.main.explorer", return_value=True):
+        with saisies("o", "3", "o", "o", "n"):
+            jeu(joueur, NEUTRE)
+    assert charger(3).niveau_donjon == 3
+    assert charger(1) is None
+
+
+def test_un_heros_charge_reste_dans_son_emplacement():
+    """Sauvegarder un héros chargé ne demande rien et ne touche pas aux autres."""
+    heros_sauvegarde("Brune", 1)
+    heros_sauvegarde("Cassis", 2)
+    with patch("ombrefer.main.explorer", return_value=True), saisies("2", "o", "n"):
+        partie_chargee()
+    assert charger(2).niveau_donjon == 2
+    assert charger(1).niveau_donjon == 1
+
+
+def test_remplacer_un_emplacement_demande_confirmation():
+    """Refuser ramène à la liste, accepter remplace le héros."""
+    heros_sauvegarde("Brune", 1)
+    joueur = creer_joueur()
+    with patch("ombrefer.main.explorer", return_value=True):
+        with saisies("o", "1", "n", "1", "o", "n"):
+            jeu(joueur, NEUTRE)
+    assert charger(1).nom == "Aldric"
+
+
+def test_annuler_la_sauvegarde(capsys):
+    """Le choix 0 ne sauvegarde rien et ne touche à aucun héros."""
+    heros_sauvegarde("Brune", 1)
+    joueur = creer_joueur()
+    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "0", "n"):
+        jeu(joueur, NEUTRE)
+    assert "Sauvegarde annulée." in capsys.readouterr().out
+    assert joueur.emplacement is None
+    assert charger(1).nom == "Brune"
+
+
+def test_charger_le_heros_choisi(capsys):
+    """Le joueur reprend le héros de l'emplacement demandé."""
+    heros_sauvegarde("Brune", 1)
+    heros_sauvegarde("Cassis", 3)
+    with saisies("3"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
+    assert jeu_simule.call_args.args[0].nom == "Cassis"
+    assert "2. vide" in capsys.readouterr().out
+
+
+def test_retour_du_chargement():
+    """Le choix 0 ne lance aucune partie."""
+    heros_sauvegarde("Brune", 1)
+    with saisies("0"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
+    assert not jeu_simule.called
+
+
+def test_charger_un_emplacement_vide(capsys):
+    """Un emplacement vide ne lance aucune partie."""
+    heros_sauvegarde("Brune", 1)
+    with saisies("2"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
+    assert not jeu_simule.called
+    assert "Impossible de charger cet emplacement." in capsys.readouterr().out
+
+
+def test_un_fichier_illisible_n_empeche_pas_de_charger_les_autres(capsys):
+    """La liste signale le fichier abîmé, et les autres héros restent chargeables."""
+    heros_sauvegarde("Brune", 1)
+    heros_sauvegarde("Cassis", 2)
+    chemin(1).write_bytes(b"abime")
+    with saisies("2"), patch("ombrefer.main.jeu") as jeu_simule:
+        partie_chargee()
+    assert "1. fichier illisible" in capsys.readouterr().out
+    assert jeu_simule.call_args.args[0].nom == "Cassis"
+
+
+def test_mort_en_enfer_n_efface_que_son_emplacement():
+    """Le héros d'Enfer disparaît, ceux des autres emplacements restent."""
+    heros_sauvegarde("Brune", 1)
+    joueur = heros_sauvegarde("Cassis", 2, "Enfer")
+    with patch("ombrefer.main.explorer", return_value=False):
+        jeu(joueur, DIFFICULTES["4"])
+    assert not emplacement_occupe(2)
+    assert charger(1).nom == "Brune"
+
+
+def test_heros_d_enfer_charge_depuis_un_autre_emplacement():
+    """La mort d'un héros d'Enfer chargé efface bien l'emplacement d'où il vient."""
+    heros_sauvegarde("Brune", 1)
+    heros_sauvegarde("Cassis", 3, "Enfer")
+    with patch("ombrefer.main.explorer", return_value=False), saisies("3"):
+        partie_chargee()
+    assert not emplacement_occupe(3)
+    assert emplacement_occupe(1)
+
+
+def test_l_enfer_ressauvegarde_dans_son_emplacement():
+    """Après une victoire, le héros d'Enfer revient dans l'emplacement qu'il a consommé."""
+    joueur = heros_sauvegarde("Cassis", 2, "Enfer")
+    with patch("ombrefer.main.explorer", return_value=True), saisies("o", "n"):
+        jeu(joueur, DIFFICULTES["4"])
+    assert charger(2).niveau_donjon == 2
+
+
+def test_l_ancien_fichier_passe_dans_l_emplacement_1(fichier_sauvegarde):
+    """Une sauvegarde des anciennes versions est retrouvée dans l'emplacement 1."""
+    heros_sauvegarde("Brune", 1)
+    ancien = fichier_sauvegarde.with_name("sauvegarde.sav")
+    fichier_sauvegarde.rename(ancien)
+    with saisies("4"):
+        main()
+    assert not ancien.exists()
+    assert charger(1).nom == "Brune"
+
+
+def test_l_ancien_fichier_n_ecrase_pas_l_emplacement_1(fichier_sauvegarde):
+    """Si l'emplacement 1 est pris, l'ancien fichier reste où il est."""
+    heros_sauvegarde("Brune", 1)
+    ancien = fichier_sauvegarde.with_name("sauvegarde.sav")
+    ancien.write_bytes(fichier_sauvegarde.read_bytes())
+    heros_sauvegarde("Cassis", 1)
+    with saisies("4"):
+        main()
+    assert ancien.exists()
+    assert charger(1).nom == "Cassis"

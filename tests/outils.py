@@ -12,9 +12,6 @@ from ombrefer.personnage import Joueur
 # Difficulté neutre : les modèles sont utilisés sans aucun changement.
 NEUTRE = Difficulte("Test", 30, 8, 1, 1)
 
-# Les modes de plus en plus durs : l'Enfer n'en fait pas partie, il reprend le mode Difficile.
-MODES_DE_BASE = [mode for mode in DIFFICULTES.values() if not mode.mort_definitive]
-
 # Lance un test une fois par mode de difficulté.
 chaque_mode = pytest.mark.parametrize(
     "difficulte", DIFFICULTES.values(), ids=lambda difficulte: difficulte.nom

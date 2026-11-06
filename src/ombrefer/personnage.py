@@ -129,7 +129,7 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         self.garde_utilisee = False
         self.bonus_pacte = 0  # attaque gagnée ou perdue jusqu'à la fin du niveau de donjon
         self.allie = False  # le prisonnier libéré attend le boss de ce niveau
-        self.a_une_sauvegarde = False  # le fichier de sauvegarde contient bien ce héros
+        self.emplacement = None  # numéro de l'emplacement où ce héros est sauvegardé
 
     def gagner_or(self, montant):
         """Ajoute des pièces d'or au joueur."""
@@ -157,6 +157,17 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
             return False
         self.piece -= montant
         return True
+
+    def retirer_objet(self, objet):
+        """Enlève au joueur cet objet, porté ou rangé : il ne revient pas dans l'inventaire."""
+        if objet is self.arme:
+            self.attaque -= objet.bonus_pour(self.classe)
+            self.arme = None
+        elif objet is self.armure:
+            self.defense -= objet.bonus
+            self.armure = None
+        else:
+            self.inventaire.remove(objet)
 
     def changer_attaque_pour_le_niveau(self, montant):
         """Change l'attaque jusqu'à la fin du niveau de donjon."""

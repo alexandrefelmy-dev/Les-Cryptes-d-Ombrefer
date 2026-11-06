@@ -14,6 +14,7 @@ PRIX_PAR_ATTAQUE = 5
 PRIX_PAR_DEFENSE = 10
 PRIX_PAR_REMEDE = 15  # pour chaque effet guéri
 PRIX_EFFET = 10  # supplément pour une arme à effet ou une armure protectrice
+PART_REVENTE = 0.5  # part du prix que le marchand rend pour une arme ou une armure
 
 
 class Objet:
@@ -41,6 +42,10 @@ class Objet:
     def prix(self):
         """Renvoie le prix de l'objet en boutique."""
         return 0
+
+    def prix_revente(self):
+        """Renvoie ce que le marchand paie pour cet objet."""
+        return max(1, round(self.prix() * PART_REVENTE))
 
     def texte_pour(self, joueur):  # pylint: disable=unused-argument
         """Renvoie le texte de l'objet tel qu'il vaut pour ce joueur."""

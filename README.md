@@ -35,7 +35,7 @@ python -m pytest
 - 5 classes de héros avec leurs stats et une attaque spéciale à recharge : Guerrier, Voleur, Mage, Nécromancien et Berserker
 - 10 niveaux de donjon de 6 à 9 salles générées au hasard : ennemis, butin et pièges
 - Une fin du jeu au niveau 10, et un succès différent à gagner dans chaque mode de difficulté
-- Mode Enfer : la difficulté du mode Difficile, mais la mort efface le héros, avec un record du plus haut niveau atteint et un succès ultime
+- Mode Enfer : le plus dur des 4 modes, où la mort efface le héros, avec un record du plus haut niveau atteint et un succès ultime
 - Combat au tour par tour contre 16 types d'ennemis, dont 7 qui n'arrivent qu'après le premier niveau
 - Les ennemis sans effet compensent avec de meilleures stats
 - 4 boss de fin de donjon avec chacun leur propre effet, et 3 boss supplémentaires à partir des niveaux 3, 5 et 7
@@ -46,10 +46,10 @@ python -m pytest
 - 3 potions de soin, 4 remèdes, 17 armes et 8 armures : plus l'objet est fort, plus il est rare
 - Les armes ont une famille : selon la classe, elles donnent un gros bonus, un malus ou rien de spécial
 - Une seule arme et une seule armure portées à la fois : l'ancienne retourne dans l'inventaire
-- Boutique : à la sortie d'une salle (30 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or
+- Boutique : à la sortie d'une salle (30 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or, et reprend ton équipement à 50 % du prix
 - 5 événements rares à la sortie d'une salle (8 %), avec des choix risqués hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée
 - XP et montées de niveau, et option 0 pour revenir en arrière dans les menus
-- Sauvegarde du héros et de son niveau de donjon après chaque niveau terminé
+- 3 emplacements de sauvegarde pour le héros et son niveau de donjon, après chaque niveau terminé
 
 ### Classes de héros
 
@@ -87,13 +87,15 @@ Une nouvelle partie commence au niveau 1. Après chaque boss vaincu, le héros s
 - les ennemis dangereux tombent plus souvent et de nouveaux ennemis apparaissent
 - les armes et armures fortes sont moins rares, jusqu'à une limite
 
-Le fichier `sauvegarde.sav` contient `niveau_donjon`, le niveau où le héros repartira, ainsi que `difficulte` et `classe`. Le mode et la classe choisis à la création du héros ne peuvent plus changer : ils sont repris automatiquement au chargement.
+Le jeu propose 3 emplacements, dans les fichiers `sauvegarde_1.sav` à `sauvegarde_3.sav`. Un nouveau héros choisit le sien à sa première sauvegarde, et le garde ensuite sans question. Remplacer un autre héros demande une confirmation. Une sauvegarde d'une ancienne version, `sauvegarde.sav`, est reprise dans l'emplacement 1 s'il est libre.
 
-Ce fichier est compressé et signé : il n'est pas lisible, et le jeu refuse de le charger s'il a été modifié.
+Chaque fichier contient `niveau_donjon`, le niveau où le héros repartira, ainsi que `difficulte` et `classe`. Le mode et la classe choisis à la création du héros ne peuvent plus changer : ils sont repris automatiquement au chargement.
+
+Ces fichiers sont compressés et signés : ils ne sont pas lisibles, et le jeu refuse de les charger s'ils ont été modifiés.
 
 ### Fin du jeu et succès
 
-Vaincre le boss du niveau 10 raconte la fin du jeu propre au mode choisi et débloque son succès. La partie s'arrête alors, sans proposer de sauvegarde ni de niveau 11. La sauvegarde précédente reste chargeable.
+Vaincre le boss du niveau 10 raconte la fin du jeu propre au mode choisi et débloque son succès. La partie s'arrête alors, sans proposer de sauvegarde ni de niveau 11. La sauvegarde précédente reste chargeable, sauf en mode Enfer.
 
 | Mode | Succès |
 | --- | --- |
@@ -106,12 +108,12 @@ Le choix 3 du menu principal affiche les succès obtenus et le record du mode En
 
 ### Mode Enfer
 
-Le mode Enfer reprend tous les réglages du mode Difficile. La seule différence est qu'il n'y a pas de seconde chance :
+Le mode Enfer est le plus dur des 4 modes, et il n'offre aucune seconde chance :
 
 - la mort efface le héros, sans retour possible à sa dernière sauvegarde
 - entrer dans un niveau consomme la sauvegarde : quitter le jeu en plein niveau revient donc à mourir
 - le héros peut toujours être sauvegardé entre deux niveaux, pour reprendre plus tard
-- la sauvegarde d'un autre héros n'est jamais touchée, sauf si ce héros d'Enfer sauvegarde par-dessus
+- seul l'emplacement de ce héros est effacé : les autres héros ne risquent rien
 
 Le plus haut niveau atteint est retenu avec le nom et la classe du héros, dès qu'il entre dans ce niveau. Terminer ce mode donne le succès ultime.
 
@@ -170,20 +172,20 @@ Le jeu n'affiche jamais les chances, seulement des indices. Le héros peut reven
 
 ### Modes de difficulté
 
-| | Facile | Intermédiaire | Difficile |
-| --- | --- | --- | --- |
-| **PV / attaque de base** | 35 / 8 | 28 / 8 | 21 / 7 |
-| **Force des ennemis** | ×1,23 | ×1,36 | ×1,5 |
-| **Pièges** | 5 % | 10 % | 20 % |
-| **Potions** | 55 % | 50 % | 40 % |
-| **Or et XP des ennemis** | ×1 | ×1,25 | ×1,5 |
-| **Récompenses du boss** | ×1 | ×1,5 | ×2 |
-| **Boss possibles au niveau 1** | 3 | 3 | 4 |
-| **Force ajoutée au niveau 2** | +56 % | +85 % | +120 % |
+| | Facile | Intermédiaire | Difficile | Enfer |
+| --- | --- | --- | --- | --- |
+| **PV / attaque de base** | 35 / 8 | 28 / 8 | 24 / 7 | 21 / 7 |
+| **Force des ennemis** | ×0,9 | ×0,95 | ×1 | ×1,05 |
+| **Pièges** | 5 % | 10 % | 15 % | 20 % |
+| **Potions** | 55 % | 50 % | 45 % | 40 % |
+| **Or et XP des ennemis** | ×1 | ×1,25 | ×1,4 | ×1,5 |
+| **Récompenses du boss** | ×1 | ×1,5 | ×1,75 | ×2 |
+| **Boss possibles au niveau 1** | 3 | 3 | 4 | 4 |
+| **Force ajoutée au niveau 2** | +72 % | +87 % | +96 % | +106 % |
 
-Les armes et armures fortes sont aussi moins rares quand la difficulté monte, et le Seigneur vampire n'apparaît qu'en mode Difficile. La force dépend du niveau du donjon et non du niveau du héros.
+Les armes et armures fortes sont aussi moins rares quand la difficulté monte, et le Seigneur vampire n'apparaît qu'en modes Difficile et Enfer. La force dépend du niveau du donjon et non du niveau du héros.
 
-Un bot simple qui achète en boutique, utilise son attaque spéciale dès qu'elle est prête et ne se défend jamais réussit en moyenne, sur les 5 classes et les niveaux 1 à 8, environ 67 % des niveaux en Facile, 40 % en Intermédiaire et 15 % en Difficile.
+La difficulté est réglée avec un bot prudent, qui achète et vend en boutique, se soigne tôt, lève sa garde, fuit quand il va mal et utilise son attaque spéciale dès qu'elle est prête. Sans jamais recharger de sauvegarde, il finit le jeu, en moyenne sur les 5 classes, dans environ 34 % des parties en Facile, 12 % en Intermédiaire, 3 % en Difficile et 0,5 % en Enfer.
 
 ## 📁 Structure du projet
 
@@ -199,10 +201,10 @@ Le code du jeu est dans `src/ombrefer/` :
 | `objet.py` | Classes `Objet`, `Potion`, `Remede`, `Arme` et `Armure`, affichage de l'inventaire |
 | `combat.py` | Déroulement du combat |
 | `donjon.py` | Modes de difficulté, génération des salles et exploration |
-| `boutique.py` | Affichage de la boutique et achats |
+| `boutique.py` | Affichage de la boutique, achats et ventes d'équipement |
 | `evenement.py` | Événements hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée |
 | `succes.py` | Succès de fin de jeu, un par mode de difficulté, et record du mode Enfer |
-| `sauvegarde.py` | Sauvegarde, chargement et effacement du héros, dans un fichier compressé et signé |
+| `sauvegarde.py` | Sauvegarde, chargement et effacement des héros, dans 3 emplacements compressés et signés |
 
 Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
 
