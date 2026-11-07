@@ -46,7 +46,7 @@ python -m pytest
 - 3 potions de soin, 4 remèdes, 17 armes et 8 armures : plus l'objet est fort, plus il est rare
 - Les armes ont une famille : selon la classe, elles donnent un gros bonus, un malus ou rien de spécial
 - Une seule arme et une seule armure portées à la fois : l'ancienne retourne dans l'inventaire
-- Boutique : à la sortie d'une salle (30 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or, et reprend ton équipement à 50 % du prix
+- Boutique : à la sortie d'une salle (20 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or, et reprend ton équipement à 50 % du prix
 - 5 événements rares à la sortie d'une salle (8 %), avec des choix risqués hors combat : Fontaine, Autel maudit, Coffre piégé, Prisonnier et Forge abandonnée
 - XP et montées de niveau, et option 0 pour revenir en arrière dans les menus
 - 3 emplacements de sauvegarde pour le héros et son niveau de donjon, après chaque niveau terminé
@@ -153,7 +153,7 @@ Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour u
 
 ### Événements
 
-À la sortie d'une salle, un seul tirage décide de ce qui attend le héros : un marchand (30 %), un événement (8 %) ou rien. Il n'y en a donc jamais deux à la fois, et rien après le boss. Les cinq événements sont aussi fréquents, et chacun reste proposé après une fuite, comme le marchand.
+À la sortie d'une salle, un seul tirage décide de ce qui attend le héros : un marchand (20 %), un événement (8 %) ou rien. Il n'y en a donc jamais deux à la fois, et rien après le boss. Les cinq événements sont aussi fréquents, et chacun reste proposé après une fuite, comme le marchand.
 
 Le jeu n'affiche jamais les chances, seulement des indices. Le héros peut revenir au menu pour se soigner avant de décider, ou passer à la salle suivante sans rien tenter. Une perte de PV d'événement ne tue jamais : les PV s'arrêtent à 1, et l'armure adaptée bloque le poison. Attention au poison reçu à 1 PV, qui peut achever le héros à l'entrée de la salle suivante.
 

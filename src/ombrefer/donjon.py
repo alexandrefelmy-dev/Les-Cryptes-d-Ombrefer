@@ -130,7 +130,7 @@ CHANCE_EFFET_BOSS = 0.4
 
 # Chances qu'un marchand ou un autre événement attende à la sortie d'une salle.
 # Un seul tirage pour les deux, donc jamais les deux à la fois, et rien après le boss.
-CHANCE_BOUTIQUE = 0.3
+CHANCE_BOUTIQUE = 0.2
 CHANCE_EVENEMENT = 0.08
 
 # Répartition du butin quand ce n'est pas une potion. Le reste (40 %) donne une arme.
@@ -330,11 +330,11 @@ def tirer_sortie(difficulte):
 
 
 def creer_salle(numero, difficulte):
-    """Crée une salle avec 75 % de chances d'ennemi, un piège et ce qui attend à sa sortie."""
+    """Crée une salle avec 90 % de chances d'ennemi, un piège et ce qui attend à sa sortie."""
     boutique, evenement = tirer_sortie(difficulte)
     return Salle(
         numero,
-        creer_ennemi(difficulte) if random.random() < 0.75 else None,
+        creer_ennemi(difficulte) if random.random() < 0.9 else None,
         creer_butin(difficulte),
         random.random() < difficulte.chance_piege,
         boutique=boutique,
