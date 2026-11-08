@@ -1,3 +1,7 @@
 __pycache__/
 .vscode/
-sauvegarde.json
+*.sav
+.pytest_cache/
+*.egg-info/
+.claude/
+graphify-out/

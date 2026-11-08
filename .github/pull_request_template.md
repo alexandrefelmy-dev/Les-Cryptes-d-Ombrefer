@@ -12,5 +12,5 @@ Closes #
 
 ## Vérifications
 
-- [ ] Le jeu se lance et la fonctionnalité marche (`python main.py`)
+- [ ] Le jeu se lance et la fonctionnalité marche (`python -m ombrefer`)
 - [ ] Les linters passent (`pre-commit run --all-files`)
