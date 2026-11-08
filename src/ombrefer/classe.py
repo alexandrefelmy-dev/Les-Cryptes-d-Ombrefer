@@ -2,8 +2,8 @@
 
 import random
 
-from ombrefer.effet import AFFAIBLISSEMENT, RAGE, SAIGNEMENT
-from ombrefer.objet import BATON, DAGUE, EPEE, FAUX, HACHE
+from ombrefer.effet import AFFAIBLISSEMENT, SAIGNEMENT
+from ombrefer.objet import BATON, DAGUE, EPEE, FAUX
 
 # Multiplient le bonus d'une arme selon l'affinité de la classe avec sa famille.
 GROS_BONUS = 1.5
@@ -21,7 +21,6 @@ class ClasseHeros:
     chance_critique = 0.2
     chance_esquive = 0.1
     recharge = 4  # tours de combat à attendre entre deux attaques spéciales
-    peut_se_defendre = True
     bonus_coffre = 0  # s'ajoute à la chance de forcer un coffre piégé
     affinites = {}  # pour chaque famille d'arme non neutre, GROS_BONUS ou MALUS
 
@@ -66,7 +65,7 @@ class Voleur(ClasseHeros):
     chance_esquive = 0.15
     recharge = 4
     bonus_coffre = 0.2
-    affinites = {DAGUE: GROS_BONUS, BATON: MALUS, HACHE: MALUS}
+    affinites = {DAGUE: GROS_BONUS, BATON: MALUS, FAUX: MALUS}
 
     def attaque_speciale(self, joueur, ennemi):
         degats = joueur.frapper(ennemi, random.randint(1, joueur.attaque_actuelle()) * 2)
@@ -83,7 +82,7 @@ class Mage(ClasseHeros):
     multiplicateur_pv = 0.8
     bonus_attaque = 2
     recharge = 6
-    affinites = {BATON: GROS_BONUS, EPEE: MALUS, HACHE: MALUS}
+    affinites = {BATON: GROS_BONUS, EPEE: MALUS, FAUX: MALUS}
     force_eclair = 1.25  # multiplie l'attaque pour donner les dégâts de l'éclair
 
     def attaque_speciale(self, joueur, ennemi):
@@ -99,7 +98,7 @@ class Necromancien(ClasseHeros):
     nom_special = "Drain de vie"
     description = "son Drain de vie le soigne en blessant l'ennemi"
     recharge = 3
-    affinites = {FAUX: GROS_BONUS, EPEE: MALUS, HACHE: MALUS}
+    affinites = {FAUX: GROS_BONUS, EPEE: MALUS, BATON: MALUS}
     part_soin = 1.0  # part des dégâts infligés qui revient en PV
 
     def attaque_speciale(self, joueur, ennemi):
@@ -108,30 +107,11 @@ class Necromancien(ClasseHeros):
         return f"{joueur.nom} utilise {self.nom_special} : {degats} dégâts, +{soin} PV."
 
 
-class Berserker(ClasseHeros):
-    """Héros qui ne se défend jamais : sa Rage le renforce et bloque les effets, mais l'expose."""
-
-    nom = "Berserker"
-    nom_special = "Rage"
-    description = "sans garde, sa Rage décuple ses coups et bloque les effets, mais l'expose"
-    multiplicateur_pv = 1.15
-    bonus_attaque = 2
-    recharge = 5
-    peut_se_defendre = False
-    affinites = {HACHE: GROS_BONUS, BATON: MALUS, DAGUE: MALUS}
-
-    def attaque_speciale(self, joueur, ennemi):
-        joueur.recevoir_effet(RAGE)
-        degats, _ = joueur.attaquer(ennemi)
-        return f"{joueur.nom} entre en {self.nom_special} et frappe : {degats} dégâts !"
-
-
 CLASSES = {
     "1": Guerrier(),
     "2": Voleur(),
     "3": Mage(),
     "4": Necromancien(),
-    "5": Berserker(),
 }
 
 

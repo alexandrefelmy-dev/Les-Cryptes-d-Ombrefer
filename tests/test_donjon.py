@@ -47,12 +47,13 @@ from ombrefer.donjon import (
     Salle,
     MODELES_BOSS,
     MODELES_ENNEMIS,
+    NIVEAU_FINAL,
     pause,
     traverser_salle,
 )
 from ombrefer.effet import AFFAIBLISSEMENT, IMMOBILISATION, POISON, SAIGNEMENT
 from ombrefer.classe import CLASSES, GROS_BONUS
-from ombrefer.objet import Arme, Armure, BATON, EPEE, HACHE, LANCE, Potion, Remede
+from ombrefer.objet import Arme, Armure, BATON, EPEE, LANCE, Potion, Remede
 from ombrefer.personnage import Ennemi
 
 
@@ -479,6 +480,67 @@ def test_boss_avances_de_plus_en_plus_durs():
         assert valeurs == sorted(set(valeurs))
 
 
+def test_chaque_mode_a_son_boss_final():
+    """Au dernier niveau, chaque mode affronte toujours son propre boss final."""
+    noms = []
+    for difficulte in DIFFICULTES.values():
+        final = adapter_au_niveau(difficulte, NIVEAU_FINAL)
+        tires = {creer_salle_boss([], final).ennemi.nom for _ in range(50)}
+        assert tires == {difficulte.boss_final[0][0]}
+        noms.append(difficulte.boss_final[0][0])
+    assert len(set(noms)) == len(DIFFICULTES)
+    assert DIFFICULTES["4"].boss_final[0][0] == "Seigneur d'Ombrefer"
+
+
+def test_boss_finaux_de_plus_en_plus_durs():
+    """Une fois ajusté par son mode, le boss final a plus de PV et de récompense à chaque mode."""
+    pv, recompenses = [], []
+    for difficulte in DIFFICULTES.values():
+        final = adapter_au_niveau(difficulte, NIVEAU_FINAL)
+        with hasard():
+            boss = creer_salle_boss([], final).ennemi
+        pv.append(boss.pv_max)
+        recompenses.append(boss.recompense)
+    assert pv == sorted(set(pv))
+    assert recompenses == sorted(set(recompenses))
+
+
+def test_boss_final_plus_robuste_que_les_boss_de_base():
+    """Chaque boss final a plus de PV que les quatre boss de base."""
+    for difficulte in DIFFICULTES.values():
+        final = difficulte.boss_final[0]
+        assert all(final[1] > boss[1] for boss, _ in MODELES_BOSS)
+
+
+def test_boss_final_seulement_au_dernier_niveau():
+    """Avant le dernier niveau, le boss reste tiré parmi les boss possibles."""
+    difficulte = adapter_au_niveau(DIFFICULTES["1"], NIVEAU_FINAL - 1)
+    possibles = {stats[0] for stats, _ in boss_possibles(difficulte)}
+    noms = {creer_salle_boss([], difficulte).ennemi.nom for _ in range(200)}
+    assert noms <= possibles
+    assert difficulte.boss_final[0][0] not in noms
+
+
+def test_boss_final_ajuste_par_le_mode():
+    """Le boss final reste multiplié par la force et les récompenses du mode."""
+    final = adapter_au_niveau(DIFFICULTES["4"], NIVEAU_FINAL)
+    with hasard():
+        salle = creer_salle_boss([], final)
+    nom, pv, attaque, recompense, effet = final.boss_final[0]
+    assert salle.ennemi.nom == nom and salle.ennemi.effet == effet
+    assert salle.ennemi.pv_max == ajuster(pv, final.force_ennemis)
+    assert salle.ennemi.attaque == ajuster(attaque, final.force_ennemis)
+    assert salle.ennemi.recompense == ajuster(recompense, final.recompense_boss)
+    assert salle.butin.nom == final.boss_final[1][0]
+
+
+def test_sans_boss_final_le_dernier_niveau_tire_au_hasard():
+    """Un mode sans boss final tire son boss comme aux autres niveaux."""
+    final = adapter_au_niveau(NEUTRE, NIVEAU_FINAL)
+    noms = {creer_salle_boss([], final).ennemi.nom for _ in range(300)}
+    assert len(noms) > 1
+
+
 def test_frequences_des_ennemis():
     """Sur beaucoup de tirages, chaque ennemi apparaît plus souvent que le suivant."""
     noms = [creer_ennemi(NEUTRE).nom for _ in range(100000)]
@@ -542,10 +604,10 @@ def test_creer_armure_respecte_son_modele(modele):
     assert (armure.nom, armure.bonus) == modele[:2]
 
 
-def test_il_y_a_dix_sept_armes_differentes():
-    """Il y a 17 armes, toutes avec un nom différent."""
-    assert len(MODELES_ARMES) == 17
-    assert len({modele[0] for modele in MODELES_ARMES}) == 17
+def test_il_y_a_quatorze_armes_differentes():
+    """Il y a 14 armes, toutes avec un nom différent."""
+    assert len(MODELES_ARMES) == 14
+    assert len({modele[0] for modele in MODELES_ARMES}) == 14
 
 
 @pytest.mark.parametrize("classe", CLASSES.values(), ids=lambda classe: classe.nom)
@@ -573,9 +635,9 @@ def test_creer_arme_garde_sa_famille():
 
 def test_arme_de_boss_garde_sa_famille():
     """L'arme d'un boss garde sa famille, même renforcée par le mode."""
-    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, HACHE))
+    modele = (("Boss", 50, 10, 40, POISON), ("Arme", 6, POISON, LANCE))
     with patch("random.choice", return_value=modele):
-        assert creer_salle_boss([], NEUTRE).butin.famille == HACHE
+        assert creer_salle_boss([], NEUTRE).butin.famille == LANCE
 
 
 def test_plus_une_arme_est_forte_plus_elle_est_rare():

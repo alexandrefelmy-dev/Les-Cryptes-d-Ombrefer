@@ -184,22 +184,22 @@ def test_potions_et_remedes_ne_se_vendent_pas():
 def test_liste_de_vente_range_d_abord_ce_qui_n_est_pas_porte():
     """L'équipement porté arrive en dernier, et il est signalé."""
     joueur = joueur_riche(0)
-    joueur.equiper_arme(Arme("Hache", 6))
+    joueur.equiper_arme(Arme("Lance", 6))
     joueur.ramasser_objet(Arme("Epée", 4))
     joueur.ramasser_objet(Potion("Potion", 10))
-    assert [objet.nom for objet in equipement_a_vendre(joueur)] == ["Epée", "Hache"]
+    assert [objet.nom for objet in equipement_a_vendre(joueur)] == ["Epée", "Lance"]
 
 
 def test_afficher_la_vente(capsys):
     """La liste donne les prix de revente et signale ce qui est porté."""
     joueur = joueur_riche(25)
-    joueur.equiper_arme(Arme("Hache", 6))
+    joueur.equiper_arme(Arme("Lance", 6))
     joueur.ramasser_objet(Arme("Epée", 4))
     afficher_vente(joueur, equipement_a_vendre(joueur))
     sortie = capsys.readouterr().out
     assert "=== Vente === (Or : 25)" in sortie
     assert "1. Epée (Lance, +4 attaque) : 10 or" in sortie
-    assert "2. Hache (Lance, +6 attaque) [porté] : 15 or" in sortie
+    assert "2. Lance (Lance, +6 attaque) [porté] : 15 or" in sortie
 
 
 def test_vendre_depuis_la_boutique():

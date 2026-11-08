@@ -181,13 +181,13 @@ def test_de_6_a_9_salles_dans_tous_les_modes(difficulte, capsys):
 
 def test_nouvelle_partie_cree_le_heros_du_mode():
     """Une nouvelle partie utilise les stats du mode choisi."""
-    with saisies("Aldric", "5", "3"), patch("ombrefer.main.jeu") as jeu_simule:
+    with saisies("Aldric", "1", "3"), patch("ombrefer.main.jeu") as jeu_simule:
         nouvelle_partie()
     joueur, difficulte = jeu_simule.call_args.args
     assert difficulte is DIFFICULTES["3"]
     assert joueur.nom == "Aldric"
-    assert joueur.classe is CLASSES["5"]
-    assert joueur.pv_max == round(difficulte.pv_joueur * CLASSES["5"].multiplicateur_pv)
+    assert joueur.classe is CLASSES["1"]
+    assert joueur.pv_max == round(difficulte.pv_joueur * CLASSES["1"].multiplicateur_pv)
 
 
 def test_retour_du_choix_de_classe_ne_lance_pas_de_partie():

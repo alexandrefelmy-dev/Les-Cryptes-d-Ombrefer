@@ -32,18 +32,19 @@ python -m pytest
 
 ## 🎮 Fonctionnalités actuelles
 
-- 5 classes de héros avec leurs stats et une attaque spéciale à recharge : Guerrier, Voleur, Mage, Nécromancien et Berserker
+- 4 classes de héros avec leurs stats et une attaque spéciale à recharge : Guerrier, Voleur, Mage et Nécromancien
 - 10 niveaux de donjon de 6 à 9 salles générées au hasard : ennemis, butin et pièges
 - Une fin du jeu au niveau 10, et un succès différent à gagner dans chaque mode de difficulté
-- Mode Enfer : le plus dur des 4 modes, où la mort efface le héros, avec un record du plus haut niveau atteint et un succès ultime
+- Mode Enfer : à peine plus dur que le Difficile, mais avec une seule vie : la mort efface le héros. Record du plus haut niveau atteint et succès ultime
 - Combat au tour par tour contre 16 types d'ennemis, dont 7 qui n'arrivent qu'après le premier niveau
 - Les ennemis sans effet compensent avec de meilleures stats
 - 4 boss de fin de donjon avec chacun leur propre effet, et 3 boss supplémentaires à partir des niveaux 3, 5 et 7
+- Un boss final au niveau 10, différent dans chaque mode de difficulté
 - 4 actions à chaque tour : **attaquer**, **utiliser un objet**, **fuir**, **se défendre**
 - Se défendre double la défense et bloque les nouveaux effets pendant 3 tours, une seule fois par combat, et on ne peut pas fuir un boss
 - Dégâts aléatoires, coups critiques (20 %), esquive du joueur (10 %) et défense
 - Le héros commence sans défense : seules les armures l'augmentent
-- 3 potions de soin, 4 remèdes, 17 armes et 8 armures : plus l'objet est fort, plus il est rare
+- 3 potions de soin, 4 remèdes, 14 armes et 8 armures : plus l'objet est fort, plus il est rare
 - Les armes ont une famille : selon la classe, elles donnent un gros bonus, un malus ou rien de spécial
 - Une seule arme et une seule armure portées à la fois : l'ancienne retourne dans l'inventaire
 - Boutique : à la sortie d'une salle (20 %), un marchand vend une potion, un remède, une arme et une armure contre de l'or, et reprend ton équipement à 50 % du prix
@@ -61,7 +62,6 @@ La classe se choisit à la création du héros et ne change plus. Les PV et l'at
 | **Voleur** | −15 % | +1 | Critique 30 %, esquive 15 % | **Frappe sournoise :** critique assuré et saignement | 4 tours |
 | **Mage** | −20 % | +2 | Aucune | **Éclair :** 1,25 × l'attaque, sans hasard, et affaiblissement | 6 tours |
 | **Nécromancien** | +0 % | +0 | Aucune | **Drain de vie :** coup normal, et soin égal aux dégâts | 3 tours |
-| **Berserker** | +15 % | +2 | Ne peut pas se défendre | **Rage :** attaque ×1,5 pendant 3 attaques, aucun nouvel effet, 1 dégât de plus reçu | 5 tours |
 
 La recharge ne compte que les tours de combat et continue d'un combat à l'autre : l'utiliser sur un petit ennemi peut en priver contre le boss. Le repos entre deux niveaux la remet à zéro.
 
@@ -71,13 +71,12 @@ Chaque arme appartient à une famille. Selon la classe, son bonus d'attaque est 
 
 | Classe | Gros bonus | Malus | Neutre |
 | --- | --- | --- | --- |
-| **Guerrier** | Épée | Dague, Bâton | Faux, Hache, Lance |
-| **Voleur** | Dague | Bâton, Hache | Épée, Faux, Lance |
-| **Mage** | Bâton | Épée, Hache | Dague, Faux, Lance |
-| **Nécromancien** | Faux | Épée, Hache | Dague, Bâton, Lance |
-| **Berserker** | Hache | Dague, Bâton | Épée, Faux, Lance |
+| **Guerrier** | Épée | Dague, Bâton | Faux, Lance |
+| **Voleur** | Dague | Bâton, Faux | Épée, Lance |
+| **Mage** | Bâton | Épée, Faux | Dague, Lance |
+| **Nécromancien** | Faux | Épée, Bâton | Dague, Lance |
 
-Chaque famille favorite compte trois armes, et les deux lances sont neutres pour tout le monde. Le prix suit le bonus de base, donc une arme adaptée à sa classe est une bonne affaire.
+Chaque famille favorite compte trois armes. Les deux lances sont neutres pour tout le monde. Le prix suit le bonus de base, donc une arme adaptée à sa classe est une bonne affaire.
 
 ### Niveaux de donjon
 
@@ -95,6 +94,15 @@ Ces fichiers sont compressés et signés : ils ne sont pas lisibles, et le jeu r
 
 ### Fin du jeu et succès
 
+Au niveau 10, le boss n'est plus tiré au hasard : chaque mode a son boss final. Ses PV, son attaque et ses récompenses sont ensuite multipliés comme ceux des autres boss : une fois multiplié, il a plus de PV à chaque mode. Il est réglé pour être un peu plus dur qu'un boss tiré au hasard au même niveau.
+
+| Mode | Boss final | PV | Attaque | Or et XP | Effet | Arme laissée |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Facile** | Gardien de la Flamme Pâle d'Ombrefer | 119 | 14 | 180 | Affaiblissement | Bâton de la Flamme Pâle (+38) |
+| **Intermédiaire** | Lame Noire d'Ombrefer | 123 | 15 | 200 | Saignement | Faux de la Lune Morte (+40) |
+| **Difficile** | Roi Sans Couronne d'Ombrefer | 128 | 15 | 220 | Poison | Croc des Cendres (+42) |
+| **Enfer** | Seigneur d'Ombrefer | 127 | 15 | 240 | Affaiblissement | Glaive d'Ombrefer (+45) |
+
 Vaincre le boss du niveau 10 raconte la fin du jeu propre au mode choisi et débloque son succès. La partie s'arrête alors, sans proposer de sauvegarde ni de niveau 11. La sauvegarde précédente reste chargeable, sauf en mode Enfer.
 
 | Mode | Succès |
@@ -108,7 +116,7 @@ Le choix 3 du menu principal affiche les succès obtenus et le record du mode En
 
 ### Mode Enfer
 
-Le mode Enfer est le plus dur des 4 modes, et il n'offre aucune seconde chance :
+Le mode Enfer reprend presque les réglages du mode Difficile, à peine plus durs. Sa vraie difficulté est de n'avoir qu'une vie :
 
 - la mort efface le héros, sans retour possible à sa dernière sauvegarde
 - entrer dans un niveau consomme la sauvegarde : quitter le jeu en plein niveau revient donc à mourir
@@ -144,12 +152,12 @@ Les chances de base font 100 au niveau 1, puis les ennemis dangereux gagnent du 
 
 | Effet | Ce qu'il fait | Infligé par | Parade |
 | --- | --- | --- | --- |
-| **Poison** | 2 PV par tour pendant 3 tours, malgré la défense, et continue d'une salle à l'autre | Rat géant, Araignée des cryptes, Scorpion des tombes, Spectre de Valbrume, Reine des araignées | Antidote, Cuir traité, Armure d'Ombrefer |
-| **Saignement** | 3 PV à chaque attaque portée, pendant 3 tours | Chauve-souris sanglante, Harpie des tombes, Démon des cryptes, Seigneur vampire | Potion coagulante, Gambison matelassé |
+| **Poison** | 2 PV par tour pendant 3 tours, malgré la défense, et continue d'une salle à l'autre | Rat géant, Araignée des cryptes, Scorpion des tombes, Spectre de Valbrume, Reine des araignées, Roi Sans Couronne d'Ombrefer | Antidote, Cuir traité, Armure d'Ombrefer |
+| **Saignement** | 3 PV à chaque attaque portée, pendant 3 tours | Chauve-souris sanglante, Harpie des tombes, Démon des cryptes, Seigneur vampire, Lame Noire d'Ombrefer | Potion coagulante, Gambison matelassé |
 | **Immobilisation** | Fait passer un tour, puis répit de 2 tours | Zombie, Geôlier d'os, Golem d'Ombrefer, Dragon d'os | Harnois runique |
-| **Affaiblissement** | Attaque réduite de 30 % pendant 3 tours | Ombre rampante, Acolyte noir, Roi liche, Seigneur d'Ombrefer | Potion de vigueur, Broigne de garde, Armure de l'aube |
+| **Affaiblissement** | Attaque réduite de 30 % pendant 3 tours | Ombre rampante, Acolyte noir, Roi liche, Héraut du Néant, Seigneur d'Ombrefer, Gardien de la Flamme Pâle d'Ombrefer | Potion de vigueur, Broigne de garde, Armure de l'aube |
 
-Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour un boss et 30 % pour une arme à effet. La Panacée guérit tout sauf l'immobilisation. Une armure protège d'un seul effet. Se défendre et la Rage bloquent les nouveaux effets, sans guérir ceux déjà subis.
+Un coup qui touche a 25 % de chances d'infliger l'effet de l'ennemi, 40 % pour un boss et 30 % pour une arme à effet. La Panacée guérit tout sauf l'immobilisation. Une armure protège d'un seul effet. Se défendre bloque les nouveaux effets, sans guérir ceux déjà subis.
 
 ### Événements
 
@@ -174,18 +182,18 @@ Le jeu n'affiche jamais les chances, seulement des indices. Le héros peut reven
 
 | | Facile | Intermédiaire | Difficile | Enfer |
 | --- | --- | --- | --- | --- |
-| **PV / attaque de base** | 35 / 8 | 28 / 8 | 24 / 7 | 21 / 7 |
-| **Force des ennemis** | ×0,9 | ×0,95 | ×1 | ×1,05 |
-| **Pièges** | 5 % | 10 % | 15 % | 20 % |
-| **Potions** | 55 % | 50 % | 45 % | 40 % |
+| **PV / attaque de base** | 35 / 8 | 28 / 8 | 24 / 7 | 23 / 7 |
+| **Force des ennemis** | ×0,9 | ×0,95 | ×1 | ×1,02 |
+| **Pièges** | 5 % | 10 % | 15 % | 16 % |
+| **Potions** | 55 % | 50 % | 45 % | 44 % |
 | **Or et XP des ennemis** | ×1 | ×1,25 | ×1,4 | ×1,5 |
 | **Récompenses du boss** | ×1 | ×1,5 | ×1,75 | ×2 |
 | **Boss possibles au niveau 1** | 3 | 3 | 4 | 4 |
-| **Force ajoutée au niveau 2** | +72 % | +87 % | +96 % | +106 % |
+| **Force ajoutée au niveau 2** | +72 % | +87 % | +96 % | +98 % |
 
 Les armes et armures fortes sont aussi moins rares quand la difficulté monte, et le Seigneur vampire n'apparaît qu'en modes Difficile et Enfer. La force dépend du niveau du donjon et non du niveau du héros.
 
-La difficulté est réglée avec un bot prudent, qui achète et vend en boutique, se soigne tôt, lève sa garde, fuit quand il va mal et utilise son attaque spéciale dès qu'elle est prête. Sans jamais recharger de sauvegarde, il finit le jeu, en moyenne sur les 5 classes, dans environ 34 % des parties en Facile, 12 % en Intermédiaire, 3 % en Difficile et 0,5 % en Enfer.
+La difficulté est réglée avec un bot prudent, qui achète et vend en boutique, se soigne tôt, lève sa garde, fuit quand il va mal et utilise son attaque spéciale dès qu'elle est prête. Sans jamais recharger de sauvegarde, il finit le jeu, en moyenne sur les classes, dans environ 1 % des parties en Enfer (mesuré). Pour les autres modes, les dernières mesures complètes datent d'avant les boss finaux et les derniers réglages : on estime environ 22 % en Facile, 6 % en Intermédiaire et 1,5 % en Difficile, à confirmer avec le simulateur.
 
 ## 📁 Structure du projet
 
@@ -211,7 +219,7 @@ Les tests sont dans `tests/`, avec un fichier `test_*.py` par module.
 `tools/simulateur.py` mesure l'équilibre du jeu : un bot joue des parties entières avec le vrai code, sans rien sauvegarder. Le profil `prudent` se soigne, lève sa garde et fuit, le profil `brut` fonce. Une variante essaie d'autres réglages sans toucher au code :
 
 ```bash
-PYTHONPATH=src python tools/simulateur.py --classes Berserker --variantes '{"recharge 4": {"classe.Berserker.recharge": 4}}'
+PYTHONPATH=src python tools/simulateur.py --classes Guerrier --variantes '{"recharge 4": {"classe.Guerrier.recharge": 4}}'
 ```
 
 ## 🧠 Notions Python travaillées

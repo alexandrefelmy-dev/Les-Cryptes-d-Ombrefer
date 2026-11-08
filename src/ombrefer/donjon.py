@@ -13,7 +13,6 @@ from ombrefer.objet import (
     DAGUE,
     EPEE,
     FAUX,
-    HACHE,
     LANCE,
     Potion,
     Remede,
@@ -73,33 +72,51 @@ MODELES_BOSS_AVANCES = [
     (
         5,
         ("Dragon d'os", 110, 15, 120, IMMOBILISATION),
-        ("Griffe d'os", 26, IMMOBILISATION, HACHE),
+        ("Lance d'os", 26, IMMOBILISATION, LANCE),
     ),
     (
         7,
-        ("Seigneur d'Ombrefer", 130, 17, 160, AFFAIBLISSEMENT),
+        ("Héraut du Néant", 130, 17, 160, AFFAIBLISSEMENT),
         ("Glaive noir", 34, AFFAIBLISSEMENT, EPEE),
     ),
 ]
 
+NIVEAU_FINAL = 10  # vaincre son boss termine le jeu
+
+# Boss du niveau final, propre à chaque mode : mêmes formats que MODELES_BOSS.
+# Il remplace le tirage au hasard, et reste ajusté par la force et les récompenses du mode.
+BOSS_FINAL_FACILE = (
+    ("Gardien de la Flamme Pâle d'Ombrefer", 119, 14, 180, AFFAIBLISSEMENT),
+    ("Bâton de la Flamme Pâle", 38, AFFAIBLISSEMENT, BATON),
+)
+BOSS_FINAL_INTERMEDIAIRE = (
+    ("Lame Noire d'Ombrefer", 123, 15, 200, SAIGNEMENT),
+    ("Faux de la Lune Morte", 40, SAIGNEMENT, FAUX),
+)
+BOSS_FINAL_DIFFICILE = (
+    ("Roi Sans Couronne d'Ombrefer", 128, 15, 220, POISON),
+    ("Croc des Cendres", 42, POISON, DAGUE),
+)
+BOSS_FINAL_ENFER = (
+    ("Seigneur d'Ombrefer", 127, 15, 240, AFFAIBLISSEMENT),
+    ("Glaive d'Ombrefer", 45, AFFAIBLISSEMENT, EPEE),
+)
+
 # Chaque arme : (nom, bonus d'attaque, chances de tomber sur 1000 salles, effet infligé, famille).
 MODELES_ARMES = [
-    ("Dague empoisonnée", 2, 32, POISON, DAGUE),
-    ("Lance de chasse", 3, 25, None, LANCE),
-    ("Epée rouillée", 4, 22, None, EPEE),
-    ("Bâton de frêne", 5, 19, None, BATON),
-    ("Hache de garde", 6, 17, SAIGNEMENT, HACHE),
-    ("Serpe funèbre", 7, 15, None, FAUX),
-    ("Lame sournoise", 8, 13, SAIGNEMENT, DAGUE),
-    ("Lance d'acier", 9, 11, None, LANCE),
-    ("Sabre runique", 11, 10, AFFAIBLISSEMENT, EPEE),
-    ("Bâton des arcanes", 13, 8, IMMOBILISATION, BATON),
-    ("Hache de guerre", 15, 7, IMMOBILISATION, HACHE),
-    ("Faux des ombres", 17, 6, SAIGNEMENT, FAUX),
-    ("Croc de l'ombre", 20, 5, POISON, DAGUE),
-    ("Epée de l'aube", 24, 4, None, EPEE),
+    ("Dague empoisonnée", 2, 37, POISON, DAGUE),
+    ("Lance de chasse", 3, 29, None, LANCE),
+    ("Epée rouillée", 4, 25, None, EPEE),
+    ("Bâton de frêne", 5, 22, None, BATON),
+    ("Serpe funèbre", 7, 17, None, FAUX),
+    ("Lame sournoise", 8, 15, SAIGNEMENT, DAGUE),
+    ("Lance d'acier", 9, 13, None, LANCE),
+    ("Sabre runique", 11, 11, AFFAIBLISSEMENT, EPEE),
+    ("Bâton des arcanes", 13, 9, IMMOBILISATION, BATON),
+    ("Faux des ombres", 17, 7, SAIGNEMENT, FAUX),
+    ("Croc de l'ombre", 20, 6, POISON, DAGUE),
+    ("Epée de l'aube", 24, 5, None, EPEE),
     ("Sceptre du crépuscule", 28, 3, AFFAIBLISSEMENT, BATON),
-    ("Hache du carnage", 33, 2, SAIGNEMENT, HACHE),
     ("Faux d'Ombrefer", 50, 1, POISON, FAUX),
 ]
 
@@ -163,30 +180,33 @@ class Difficulte:  # pylint: disable=too-many-instance-attributes
     courbe_force: float = 0.5  # de 0 à 1 : plus c'est bas, plus la force ralentit ensuite
     niveau_donjon: int = 1
     mort_definitive: bool = False  # la mort efface le héros, sans retour à sa sauvegarde
+    boss_final: tuple | None = None  # boss du niveau final, sinon tiré comme les autres
 
 
-# Du plus simple au plus dur : le bot prudent finit le jeu d'une traite dans environ 35 %, 12 %, 3 %
-# et 0,5 % des parties. force_par_niveau règle le danger des niveaux après le premier.
+# Du plus simple au plus dur : le bot prudent finit le jeu d'une traite dans environ 22 %, 6 %,
+# 1,5 % et 1 % des parties (seul l'Enfer est mesuré, le reste est estimé). force_par_niveau règle
+# le danger des niveaux après le premier. L'Enfer est un Difficile à peine plus dur, à une vie.
 DIFFICULTES = {
     "1": Difficulte(
         "Facile", 35, 8, 0.9, 1.0,
         gain_ennemis=1.0, chance_piege=0.05, chance_potion=0.55, rarete_armes=0.0, nb_boss=3,
-        force_par_niveau=0.72, courbe_force=0.5,
+        force_par_niveau=0.72, courbe_force=0.5, boss_final=BOSS_FINAL_FACILE,
     ),
     "2": Difficulte(
         "Intermédiaire", 28, 8, 0.95, 1.5,
         gain_ennemis=1.25, chance_piege=0.1, chance_potion=0.5, rarete_armes=0.1, nb_boss=3,
-        force_par_niveau=0.87, courbe_force=0.5,
+        force_par_niveau=0.87, courbe_force=0.5, boss_final=BOSS_FINAL_INTERMEDIAIRE,
     ),
     "3": Difficulte(
         "Difficile", 24, 7, 1.0, 1.75,
         gain_ennemis=1.4, chance_piege=0.15, chance_potion=0.45, rarete_armes=0.15, nb_boss=4,
-        force_par_niveau=0.96, courbe_force=0.5,
+        force_par_niveau=0.96, courbe_force=0.5, boss_final=BOSS_FINAL_DIFFICILE,
     ),
     "4": Difficulte(
-        "Enfer", 21, 7, 1.05, 2.0,
-        gain_ennemis=1.5, chance_piege=0.2, chance_potion=0.4, rarete_armes=0.2, nb_boss=4,
-        force_par_niveau=1.06, courbe_force=0.5, mort_definitive=True,
+        "Enfer", 23, 7, 1.02, 2.0,
+        gain_ennemis=1.5, chance_piege=0.16, chance_potion=0.44, rarete_armes=0.16, nb_boss=4,
+        force_par_niveau=0.98, courbe_force=0.5, mort_definitive=True,
+        boss_final=BOSS_FINAL_ENFER,
     ),
 }
 
@@ -352,9 +372,16 @@ def boss_possibles(difficulte):
     return MODELES_BOSS[:difficulte.nb_boss] + avances
 
 
+def choisir_boss(difficulte):
+    """Renvoie le boss final du mode au dernier niveau, sinon un boss possible au hasard."""
+    if difficulte.niveau_donjon >= NIVEAU_FINAL and difficulte.boss_final is not None:
+        return difficulte.boss_final
+    return random.choice(boss_possibles(difficulte))
+
+
 def creer_salle_boss(donjon, difficulte):
     """Crée la salle finale : la difficulté choisit le boss, sa force et ses récompenses."""
-    (nom, pv, attaque, recompense, effet), arme = random.choice(boss_possibles(difficulte))
+    (nom, pv, attaque, recompense, effet), arme = choisir_boss(difficulte)
     nom_arme, bonus, effet_arme, famille = arme
     force = difficulte.force_ennemis
     gain = difficulte.recompense_boss

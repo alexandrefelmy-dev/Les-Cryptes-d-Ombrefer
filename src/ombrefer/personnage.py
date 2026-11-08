@@ -4,15 +4,12 @@ import random
 
 from ombrefer.classe import classe_par_nom
 from ombrefer.effet import (
-    DEGATS_EN_RAGE,
     DEGATS_POISON,
     DUREES,
     FORCE_AFFAIBLI,
-    FORCE_RAGE,
     AFFAIBLISSEMENT,
     IMMOBILISATION,
     POISON,
-    RAGE,
     REPIT_IMMOBILISATION,
 )
 from ombrefer.objet import objet_depuis_dict
@@ -55,8 +52,6 @@ class Personnage:
     def attaque_actuelle(self):
         """Renvoie l'attaque du personnage, selon ses effets."""
         attaque = self.attaque
-        if RAGE in self.effets:
-            attaque *= FORCE_RAGE
         if AFFAIBLISSEMENT in self.effets:
             attaque *= FORCE_AFFAIBLI
         return max(1, round(attaque))
@@ -210,10 +205,8 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
         return self.arme.effet, CHANCE_EFFET_ARME
 
     def peut_recevoir(self, effet):
-        """La garde, la Rage et l'armure adaptée empêchent un nouvel effet de toucher le joueur."""
+        """La garde et l'armure adaptée empêchent un nouvel effet de toucher le joueur."""
         if self.tours_defense > 0:
-            return False
-        if RAGE in self.effets and effet != RAGE:
             return False
         if self.armure is not None and self.armure.protection == effet:
             return False
@@ -235,8 +228,6 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
     def subir_degats(self, degats):
         """Réduit les dégâts avec la défense, avec une chance de les esquiver."""
         degats_reduits = max(0, degats - self.defense_actuelle())
-        if RAGE in self.effets:
-            degats_reduits += DEGATS_EN_RAGE
         esquive = random.random() < self.chance_esquive
         if not esquive:
             super().subir_degats(degats_reduits)
@@ -284,13 +275,18 @@ class Joueur(Personnage):  # pylint: disable=too-many-instance-attributes
 
     @classmethod
     def from_dict(cls, donnees):
-        """Recrée un joueur à partir d'un dictionnaire chargé depuis la sauvegarde."""
+        """Recrée un joueur à partir d'un dictionnaire chargé depuis la sauvegarde.
+
+        Lève ValueError si sa classe n'existe plus dans le jeu.
+        """
         joueur = cls(donnees["nom"], donnees["pv_max"], donnees["attaque"])
         joueur.pv = donnees["pv"]
         joueur.niveau = donnees["niveau"]
         joueur.niveau_donjon = donnees["niveau_donjon"]
         joueur.difficulte = donnees["difficulte"]
         classe = classe_par_nom(donnees["classe"])
+        if classe is None and donnees["classe"] is not None:
+            raise ValueError(f"classe disparue : {donnees['classe']}")
         if classe is not None:
             joueur.prendre_classe(classe)
         joueur.piece = donnees["piece"]

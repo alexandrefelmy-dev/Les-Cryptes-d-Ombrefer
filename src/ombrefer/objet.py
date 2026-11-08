@@ -5,7 +5,6 @@ DAGUE = "Dague"
 EPEE = "Épée"
 BATON = "Bâton"
 FAUX = "Faux"
-HACHE = "Hache"
 LANCE = "Lance"  # neutre pour toutes les classes
 
 # Prix en boutique, par PV soigné, par point de bonus ou par effet.

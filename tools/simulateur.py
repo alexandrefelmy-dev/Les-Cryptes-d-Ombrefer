@@ -6,14 +6,14 @@ restent ceux du jeu. Rien n'est sauvegardé, et aucun succès n'est débloqué.
 Exemples, depuis la racine du dépôt :
 
     PYTHONPATH=src python tools/simulateur.py
-    PYTHONPATH=src python tools/simulateur.py --classes Berserker --modes Facile,Enfer --profil brut
-    PYTHONPATH=src python tools/simulateur.py --classes Berserker --variantes \
-        '{"recharge 4": {"classe.Berserker.recharge": 4}, "rage x2": {"personnage.FORCE_RAGE": 2}}'
+    PYTHONPATH=src python tools/simulateur.py --classes Guerrier --modes Facile,Enfer --profil brut
+    PYTHONPATH=src python tools/simulateur.py --classes Guerrier --variantes \
+        '{"recharge 4": {"classe.Guerrier.recharge": 4}, "poison": {"personnage.DEGATS_POISON": 4}}'
 
 Une variante change des réglages le temps de la mesure, sans toucher au code. Son chemin part d'un
 module d'ombrefer. Une constante importée par son nom se règle dans le module qui l'utilise :
-FORCE_RAGE se règle dans personnage. Les valeurs d'un dictionnaire se règlent par leur clé :
-effet.DUREES.Rage.
+DEGATS_POISON se règle dans personnage. Les valeurs d'un dictionnaire se règlent par leur clé :
+effet.DUREES.Poison.
 """
 
 import argparse
@@ -101,8 +101,8 @@ def action_brute(joueur, ennemi, _boss):
 
 
 def veut_lever_sa_garde(joueur, ennemi, boss, coup):
-    """Renvoie True si la garde est permise et vaut un tour contre cet ennemi."""
-    if not joueur.classe.peut_se_defendre or joueur.garde_utilisee:
+    """Renvoie True si la garde est encore permise et vaut un tour contre cet ennemi."""
+    if joueur.garde_utilisee:
         return False
     utile = joueur.defense >= DEFENSE_UTILE or ennemi.effet_inflige() is not None
     return utile and (boss or coup >= joueur.pv * PART_COUP_DANGEREUX)

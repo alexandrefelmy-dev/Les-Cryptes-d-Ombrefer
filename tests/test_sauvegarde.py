@@ -164,6 +164,15 @@ def test_fichier_d_un_ancien_format_est_refuse(fichier_sauvegarde, capsys):
     assert "trop ancien" in capsys.readouterr().out
 
 
+def test_heros_d_une_classe_supprimee_est_refuse(fichier_sauvegarde, capsys):
+    """Un héros d'une classe retirée du jeu, comme le Berserker, est refusé sans planter."""
+    donnees = creer_joueur().to_dict()
+    donnees["classe"] = "Berserker"
+    fichier_sauvegarde.write_bytes(encoder(donnees))
+    assert charger() is None
+    assert "trop ancien" in capsys.readouterr().out
+
+
 def test_la_signature_depend_du_contenu():
     """Deux contenus différents n'ont pas la même signature."""
     assert signer(b"a") != signer(b"b")

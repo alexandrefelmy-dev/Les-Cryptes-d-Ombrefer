@@ -107,10 +107,8 @@ def texte_speciale(joueur):
 def choix_combat(joueur):
     """Affiche les actions possibles et renvoie le choix valide du joueur."""
     actions = f"1. Attaquer   2. Utiliser un objet ({len(joueur.inventaire)})   3. Fuir"
-    choix_valides = ["1", "2", "3"]
-    if joueur.classe is None or joueur.classe.peut_se_defendre:
-        actions += "   4. Se défendre"
-        choix_valides.append("4")
+    actions += "   4. Se défendre"
+    choix_valides = ["1", "2", "3", "4"]
     if joueur.classe is not None:
         actions += f"   5. {texte_speciale(joueur)}"
         choix_valides.append("5")

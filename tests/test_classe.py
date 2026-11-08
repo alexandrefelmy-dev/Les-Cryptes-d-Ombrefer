@@ -6,7 +6,6 @@ from outils import creer_joueur, hasard, saisies
 
 from ombrefer.boutique import afficher_boutique
 from ombrefer.classe import (
-    Berserker,
     CLASSES,
     classe_par_nom,
     ClasseHeros,
@@ -18,14 +17,7 @@ from ombrefer.classe import (
     Voleur,
 )
 from ombrefer.combat import action_speciale, choix_combat, combat
-from ombrefer.effet import (
-    AFFAIBLISSEMENT,
-    DEGATS_SAIGNEMENT,
-    IMMOBILISATION,
-    POISON,
-    RAGE,
-    SAIGNEMENT,
-)
+from ombrefer.effet import AFFAIBLISSEMENT, DEGATS_SAIGNEMENT, SAIGNEMENT
 from ombrefer.objet import (
     afficher_equipement,
     afficher_inventaire,
@@ -34,7 +26,6 @@ from ombrefer.objet import (
     DAGUE,
     EPEE,
     FAUX,
-    HACHE,
 )
 from ombrefer.personnage import Ennemi, Joueur
 from ombrefer.sauvegarde import charger, sauvegarder
@@ -56,9 +47,9 @@ def cible(pv=100):
 
 
 def test_cinq_classes():
-    """Le jeu propose le Guerrier, le Voleur, le Mage, le Nécromancien et le Berserker."""
+    """Le jeu propose le Guerrier, le Voleur, le Mage et le Nécromancien."""
     noms = [classe.nom for classe in CLASSES.values()]
-    assert noms == ["Guerrier", "Voleur", "Mage", "Nécromancien", "Berserker"]
+    assert noms == ["Guerrier", "Voleur", "Mage", "Nécromancien"]
 
 
 def test_chaque_classe_a_ses_propres_stats():
@@ -156,80 +147,7 @@ def test_drain_de_vie_soigne_le_heros():
     assert joueur.pv == 10 + round(10 * Necromancien.part_soin)
 
 
-def test_rage_renforce_pour_trois_attaques():
-    """La Rage dure pour l'attaque qui la lance et les deux suivantes."""
-    joueur = heros(Berserker())
-    ennemi = cible()
-    with hasard():
-        Berserker().attaque_speciale(joueur, ennemi)
-    assert ennemi.pv == 85
-    joueur.passer_un_tour()
-    assert joueur.attaque_actuelle() == 15
-    joueur.passer_un_tour()
-    assert joueur.attaque_actuelle() == 15
-    joueur.passer_un_tour()
-    assert joueur.attaque_actuelle() == 10
-
-
-def test_rage_expose_le_heros():
-    """En rage, le Berserker encaisse un dégât de plus."""
-    joueur = heros(Berserker())
-    joueur.recevoir_effet(RAGE)
-    with hasard():
-        joueur.subir_degats(5)
-    assert joueur.pv == 24
-
-
-def test_rage_et_affaiblissement_se_combinent():
-    """Les deux effets s'appliquent à l'attaque."""
-    joueur = heros(Berserker())
-    joueur.effets.update({RAGE: 2, AFFAIBLISSEMENT: 2})
-    assert joueur.attaque_actuelle() == 10
-
-
-def test_la_rage_s_arrete_avec_le_combat():
-    """La Rage ne continue pas après le combat."""
-    joueur = heros(Berserker())
-    joueur.recevoir_effet(RAGE)
-    joueur.fin_de_combat()
-    assert not joueur.effets
-
-
-@pytest.mark.parametrize("effet", [POISON, SAIGNEMENT, IMMOBILISATION, AFFAIBLISSEMENT])
-def test_la_rage_bloque_les_nouveaux_effets(effet):
-    """En rage, aucun nouvel effet ne touche le Berserker."""
-    joueur = heros(Berserker())
-    joueur.recevoir_effet(RAGE)
-    assert not joueur.recevoir_effet(effet)
-    assert effet not in joueur.effets
-
-
-def test_la_rage_ne_guerit_pas_les_effets_deja_subis():
-    """Comme la garde, la Rage laisse en place les effets déjà subis."""
-    joueur = heros(Berserker())
-    joueur.recevoir_effet(POISON)
-    joueur.recevoir_effet(RAGE)
-    assert POISON in joueur.effets
-
-
-def test_les_effets_touchent_de_nouveau_apres_la_rage():
-    """La protection s'arrête avec la Rage."""
-    joueur = heros(Berserker())
-    joueur.recevoir_effet(RAGE)
-    joueur.fin_de_combat()
-    assert joueur.recevoir_effet(POISON)
-
-
 # --- Dans le combat ---
-
-
-def test_le_berserker_ne_peut_pas_se_defendre(capsys):
-    """Le Berserker n'a pas l'option 4, qui est refusée."""
-    with saisies("4", "1"):
-        assert choix_combat(heros(Berserker())) == "1"
-    sortie = capsys.readouterr().out
-    assert "Se défendre" not in sortie
-    assert "Réponse invalide." in sortie
 
 
 def test_sans_classe_pas_d_option_5():
@@ -342,10 +260,10 @@ def test_arme_neutre_pour_la_classe():
 
 def test_une_arme_differe_selon_la_classe():
     """La même arme peut être un bonus, un malus ou neutre selon la classe."""
-    hache = Arme("Hache", 10, None, HACHE)
-    assert hache.bonus_pour(Berserker()) == 15
-    assert hache.bonus_pour(Mage()) == 5
-    assert hache.bonus_pour(Guerrier()) == 10
+    epee = Arme("Epée", 10, None, EPEE)
+    assert epee.bonus_pour(Guerrier()) == 15
+    assert epee.bonus_pour(Mage()) == 5
+    assert epee.bonus_pour(Voleur()) == 10
 
 
 def test_malus_laisse_au_moins_un_point():
@@ -409,7 +327,7 @@ def test_texte_montre_le_bonus_de_classe():
     arme = Arme("Bâton", 10, None, BATON)
     assert "+15 attaque pour toi (bonus de classe)" in arme.texte_pour(heros(Mage()))
     assert "+5 attaque pour toi (malus de classe)" in arme.texte_pour(heros(Guerrier()))
-    assert "pour toi" not in arme.texte_pour(heros(Necromancien()))
+    assert "pour toi" not in Arme("Lance", 10).texte_pour(heros(Mage()))  # famille neutre
 
 
 def test_inventaire_et_boutique_montrent_la_vraie_valeur(capsys):

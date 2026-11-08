@@ -3,7 +3,13 @@
 import random
 
 from ombrefer.classe import CLASSES
-from ombrefer.donjon import DIFFICULTES, adapter_au_niveau, explorer, generer_donjon
+from ombrefer.donjon import (
+    DIFFICULTES,
+    NIVEAU_FINAL,
+    adapter_au_niveau,
+    explorer,
+    generer_donjon,
+)
 from ombrefer.personnage import Joueur
 from ombrefer.sauvegarde import (
     EMPLACEMENTS,
@@ -25,7 +31,6 @@ from ombrefer.succes import (
 
 NB_SALLES_MIN = 6
 NB_SALLES_MAX = 9
-NIVEAU_FINAL = 10  # vaincre son boss termine le jeu
 
 
 def demander_option(options):

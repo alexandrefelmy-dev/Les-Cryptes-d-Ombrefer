@@ -6,14 +6,14 @@ import pytest
 from simulateur import jouer_lot, resumer
 
 from ombrefer import combat, donjon
-from ombrefer.classe import Berserker
-from ombrefer.effet import DUREES, RAGE
+from ombrefer.classe import Guerrier
+from ombrefer.effet import DUREES, POISON
 from ombrefer.main import NIVEAU_FINAL
 
 
 def tache(profil="prudent", reglages=None, graine=1, mode="Facile", nb_parties=4):
-    """Crée un petit lot de parties de Berserker."""
-    return ("Berserker", mode, nb_parties, graine, profil, reglages or {})
+    """Crée un petit lot de parties de Guerrier."""
+    return ("Guerrier", mode, nb_parties, graine, profil, reglages or {})
 
 
 @pytest.mark.parametrize("profil", ["prudent", "brut"])
@@ -46,14 +46,14 @@ def test_le_bot_est_retire_apres_le_lot():
 
 def test_les_reglages_sont_retires_apres_le_lot():
     """Une variante ne laisse aucune trace, ni sur une classe, ni dans un dictionnaire."""
-    recharge, duree = Berserker.recharge, DUREES[RAGE]
-    reglages = {"classe.Berserker.recharge": 1, "effet.DUREES.Rage": 9}
+    recharge, duree = Guerrier.recharge, DUREES[POISON]
+    reglages = {"classe.Guerrier.recharge": 1, "effet.DUREES.Poison": 9}
     jouer_lot(tache(reglages=reglages, nb_parties=1))
-    assert Berserker.recharge == recharge
-    assert DUREES[RAGE] == duree
+    assert Guerrier.recharge == recharge
+    assert DUREES[POISON] == duree
 
 
-@pytest.mark.parametrize("chemin", ["classe.Berserker.absent", "effet.DUREES.Absent"])
+@pytest.mark.parametrize("chemin", ["classe.Guerrier.absent", "effet.DUREES.Absent"])
 def test_reglage_inconnu_refuse(chemin):
     """Une faute de frappe lève une erreur au lieu de mesurer le jeu sans changement."""
     with pytest.raises((AttributeError, KeyError)):
